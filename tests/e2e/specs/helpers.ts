@@ -23,13 +23,19 @@ function compose(...args: string[]) {
   });
 }
 
-/** Force at least one orders 5xx by taking inventory away for a moment. */
+/**
+ * Force orders 5xx by taking inventory away for a moment. It stays down
+ * across at least two Prometheus scrapes (5 s apart), so loadgen's traffic
+ * keeps increasing the new status="502" series and rate() rises above 0.
+ */
 export async function forceOrders5xx() {
   compose('stop', 'inventory');
   try {
     let status = 0;
     for (let i = 0; i < 3 && status < 500; i++) status = await postOrder('SKU-1001');
     expect(status).toBeGreaterThanOrEqual(500);
+    await new Promise((resolve) => setTimeout(resolve, 12_000));
+    expect(await postOrder('SKU-1001')).toBeGreaterThanOrEqual(500);
   } finally {
     compose('up', '-d', '--wait', 'inventory');
   }
