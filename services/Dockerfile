@@ -18,3 +18,7 @@ FROM scratch AS orders
 COPY --from=build /out/orders /orders
 EXPOSE 8080
 ENTRYPOINT ["/orders"]
+
+FROM scratch AS loadgen
+COPY --from=build /out/loadgen /loadgen
+ENTRYPOINT ["/loadgen"]

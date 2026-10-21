@@ -75,25 +75,24 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  dummy:
-    image: busybox:1.37.0
-    command:
-      - sh
-      - -c
-      - |
-        f=/var/log/lab/dummy.log
-        : > "$$f"
-        ts() { date -u -d "@$$1" +%Y-%m-%dT%H:%M:%S.000Z; }
-        echo "{\"time\":\"$$(ts $$(($$(date +%s) - 90)))\",\"level\":\"info\",\"service\":\"dummy\",\"msg\":\"marker\",\"request_id\":\"$$(cat /proc/sys/kernel/random/uuid)\"}" >> "$$f"
-        i=0
-        while true; do
-          case $$((i % 4)) in 2) lvl=warn ;; 3) lvl=error ;; *) lvl=info ;; esac
-          echo "{\"time\":\"$$(ts $$(date +%s))\",\"level\":\"$$lvl\",\"service\":\"dummy\",\"msg\":\"tick\",\"request_id\":\"$$(cat /proc/sys/kernel/random/uuid)\",\"seq\":$$i}" >> "$$f"
-          i=$$((i + 1))
-          sleep 1
-        done
+  loadgen:
+    build:
+      context: services
+      target: loadgen
+    image: grafana-lab/loadgen:dev
+    environment:
+      TARGET_URL: http://orders:8080
     volumes:
       - lab-logs:/var/log/lab
+    depends_on:
+      orders:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/loadgen", "-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
     restart: unless-stopped
 
   grafana:

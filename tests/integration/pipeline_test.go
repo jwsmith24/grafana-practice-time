@@ -11,18 +11,13 @@ import (
 )
 
 // T1.2-1
-func TestDummyLinesInLoki(t *testing.T) {
-	ok := eventually(t, 30*time.Second, func() bool {
-		return countLines(lokiQuery(t, `{service="dummy"}`, 5*time.Minute)) > 0
-	})
-	if !ok {
-		t.Fatal(`{service="dummy"} still empty after 30s`)
-	}
+func TestLinesInLoki(t *testing.T) {
+	waitForLines(t, "orders")
 }
 
 // T1.2-2
 func TestStreamLabels(t *testing.T) {
-	waitForDummy(t)
+	waitForLines(t, "orders")
 	if got, want := lokiGet(t, "/labels"), []string{"env", "level", "service"}; !slices.Equal(got, want) {
 		t.Fatalf("labels = %v, want %v", got, want)
 	}
@@ -31,48 +26,46 @@ func TestStreamLabels(t *testing.T) {
 	}
 }
 
-// T1.2-3
+// T1.2-3: every entry's timestamp is exactly its line's millisecond-precision
+// time field. Ingest timestamps would not land on whole milliseconds.
 func TestTimestampFromLine(t *testing.T) {
-	waitForDummy(t)
-	var streams []lokiStream
-	ok := eventually(t, 30*time.Second, func() bool {
-		streams = lokiQuery(t, `{service="dummy"} |= "\"msg\":\"marker\""`, 15*time.Minute)
-		return countLines(streams) > 0
-	})
-	if !ok {
-		t.Fatal("marker line not found")
+	waitForLines(t, "orders")
+	streams := lokiQuery(t, `{env="lab"}`, 5*time.Minute)
+	checked := 0
+	for _, s := range streams {
+		for _, v := range s.Values {
+			var line struct {
+				Time string `json:"time"`
+			}
+			if err := json.Unmarshal([]byte(v[1]), &line); err != nil {
+				t.Fatalf("line %q: %v", v[1], err)
+			}
+			want, err := time.Parse(time.RFC3339Nano, line.Time)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ns, err := strconv.ParseInt(v[0], 10, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := time.Unix(0, ns); !got.Equal(want) {
+				t.Fatalf("entry timestamp %s != line time %s\nline: %s", got.UTC().Format(time.RFC3339Nano), line.Time, v[1])
+			}
+			checked++
+		}
 	}
-	entry := streams[0].Values[0]
-	var line struct {
-		Time string `json:"time"`
-	}
-	if err := json.Unmarshal([]byte(entry[1]), &line); err != nil {
-		t.Fatalf("marker line %q: %v", entry[1], err)
-	}
-	want, err := time.Parse(time.RFC3339Nano, line.Time)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ns, err := strconv.ParseInt(entry[0], 10, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := time.Unix(0, ns)
-	if d := got.Sub(want).Abs(); d > time.Millisecond {
-		t.Fatalf("entry timestamp %s, line time %s (off by %s)", got, want, d)
-	}
-	if age := time.Since(got); age < 60*time.Second {
-		t.Fatalf("marker entry is only %s old; want the backdated line time, not ingest time", age)
+	if checked < 10 {
+		t.Fatalf("only %d entries checked", checked)
 	}
 }
 
 // T1.2-4
 func TestLinesParseAsJSON(t *testing.T) {
-	waitForDummy(t)
-	if n := countLines(lokiQuery(t, `{service="dummy"} | json | __error__!=""`, 15*time.Minute)); n != 0 {
+	waitForLines(t, "orders")
+	if n := countLines(lokiQuery(t, `{env="lab"} | json | __error__!=""`, 15*time.Minute)); n != 0 {
 		t.Fatalf("%d lines failed | json", n)
 	}
-	if n := countLines(lokiQuery(t, `{service="dummy"} | json | request_id!=""`, 15*time.Minute)); n == 0 {
+	if n := countLines(lokiQuery(t, `{service="orders"} | json | request_id!=""`, 15*time.Minute)); n == 0 {
 		t.Fatal("no lines with a parsed request_id")
 	}
 	if labels := lokiGet(t, "/labels"); slices.Contains(labels, "request_id") {
@@ -80,11 +73,11 @@ func TestLinesParseAsJSON(t *testing.T) {
 	}
 }
 
-func waitForDummy(t *testing.T) {
+func waitForLines(t *testing.T, service string) {
 	t.Helper()
 	if !eventually(t, 30*time.Second, func() bool {
-		return countLines(lokiQuery(t, `{service="dummy"}`, 5*time.Minute)) > 0
+		return countLines(lokiQuery(t, `{service="`+service+`"}`, 5*time.Minute)) > 0
 	}) {
-		t.Fatal("no dummy lines in Loki")
+		t.Fatalf(`{service=%q} still empty after 30s`, service)
 	}
 }

@@ -57,3 +57,10 @@ func TestAlloyMounts(t *testing.T) {
 		t.Error("alloy does not mount lab-logs")
 	}
 }
+
+// T2.3-6
+func TestNoDummyService(t *testing.T) {
+	if _, ok := loadCompose(t).Services["dummy"]; ok {
+		t.Fatal("compose still has the dummy service")
+	}
+}

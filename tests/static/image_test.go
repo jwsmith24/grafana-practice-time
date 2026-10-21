@@ -15,7 +15,7 @@ func TestServiceImagesStatic(t *testing.T) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker not installed")
 	}
-	for _, svc := range []string{"inventory", "orders"} {
+	for _, svc := range []string{"inventory", "orders", "loadgen"} {
 		t.Run(svc, func(t *testing.T) {
 			tag := "grafana-lab-static-test/" + svc
 			run(t, "docker", "build", "-q", "--target", svc, "-t", tag, "../../services")

@@ -140,3 +140,31 @@ func eventually(t *testing.T, timeout time.Duration, f func() bool) bool {
 		time.Sleep(time.Second)
 	}
 }
+
+// lokiInstant runs an instant LogQL metric query that returns one series and
+// returns its value.
+func lokiInstant(t *testing.T, query string) float64 {
+	t.Helper()
+	v := url.Values{"query": {query}, "time": {strconv.FormatInt(time.Now().UnixNano(), 10)}}
+	code, b := do(t, "GET", lokiAPI+"/query?"+v.Encode(), nil, false)
+	if code != 200 {
+		t.Fatalf("query %q: status %d: %s", query, code, b)
+	}
+	var r struct {
+		Data struct {
+			Result []struct {
+				Value [2]any `json:"value"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	decode(t, b, &r)
+	if len(r.Data.Result) != 1 {
+		t.Fatalf("query %q: want 1 series, got %d: %s", query, len(r.Data.Result), b)
+	}
+	s, _ := r.Data.Result[0].Value[1].(string)
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		t.Fatalf("query %q: value %v: %v", query, r.Data.Result[0].Value, err)
+	}
+	return f
+}
