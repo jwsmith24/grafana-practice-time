@@ -166,7 +166,7 @@ func TestInventory5xx(t *testing.T) {
 		t.Fatalf("status %d, want 502", rec.Code)
 	}
 	l := h.logLine(t)
-	if l["level"] != "error" || l["item_id"] != "SKU-1001" || l["request_id"] != id || l["error"] == nil {
+	if l["level"] != "ERROR" || l["item_id"] != "SKU-1001" || l["request_id"] != id || l["error"] == nil {
 		t.Fatalf("log line %v", l)
 	}
 }
@@ -179,7 +179,7 @@ func TestInventoryTimeout(t *testing.T) {
 		t.Fatalf("status %d, want 504", rec.Code)
 	}
 	l := h.logLine(t)
-	if l["level"] != "error" || l["error"] != "context deadline exceeded" || l["item_id"] != "SKU-1001" {
+	if l["level"] != "ERROR" || l["error"] != "context deadline exceeded" || l["item_id"] != "SKU-1001" {
 		t.Fatalf("log line %v", l)
 	}
 }

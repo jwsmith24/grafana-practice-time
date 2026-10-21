@@ -71,7 +71,7 @@ func TestLevelsAndTimeFormat(t *testing.T) {
 	logger.Info("i")
 	logger.Warn("w")
 	logger.Error("e")
-	want := []string{"debug", "info", "warn", "error"}
+	want := []string{"DEBUG", "INFO", "WARN", "ERROR"}
 	for i, l := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
 		if err := logschema.Validate([]byte(l), logschema.Base); err != nil {
 			t.Errorf("line %d: %v", i, err)
