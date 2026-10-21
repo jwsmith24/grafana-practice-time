@@ -20,31 +20,31 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 
 | Milestone | State | Where |
 |---|---|---|
-| M1 Log foundation (S1.1 #2, S1.2 #3) | Done; in review | PR **#50** |
-| M2 Services (S2.1–S2.4: #7–#10) | Done; in review | PR **#50** |
-| M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | Done; in review | PR **#50** |
+| M1 Log foundation (S1.1 #2, S1.2 #3) | **Merged** | PR #50 |
+| M2 Services (S2.1–S2.4: #7–#10) | **Merged** | PR #50 |
+| M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | **Merged** | PR #50 |
 | M4 Incidents (S4.1–S4.4: #18–#21) | S4.1 written, **not yet verified on a cold stack**, no PR | branch `claude/s4.1-incident-switch` |
 | M5 Setup tooling (#23–#30) | Not started | |
 | M6 Materials (#32, #33, #35) | Not started | |
 
-- **PR #50** (`claude/s3.5-deploy-annotations` → `main`) holds M1–M3 together. Its description has a verification section for each milestone.
-  - **Check CI on its latest head first.** The last fix (deploy annotations switched off in the data-link e2e helper) passed locally 8 of 8 but hadn't reported in CI at handoff time. Before that fix, T3.4-3 failed about half the time in CI.
-  - Playwright retries once in CI. A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
-  - It was consolidated from an earlier stack of per-slice PRs (#40–#49, now closed). It predates the one-milestone rule. If the human asks for it to be split, the per-slice branches still exist. The milestone boundaries are `claude/s1.2-alloy-pipeline` (end of M1), `claude/s2.4-red-herring` (end of M2), and `claude/s3.5-deploy-annotations` (end of M3).
+- **PR #50 merged M1–M3 into `main`.** It merged just before two follow-up commits landed, so `main` is missing both:
+  - **`e2e: switch off deploy annotations before following a data link`.** Without it, T3.4-3 flakes on `main`: the deploy-annotation line can be mistaken for the series line.
+  - **The refreshed handoff** (this file).
+
+  Both are on `claude/s4.1-incident-switch` and will reach `main` with the M4 PR. If `main` CI flakes on T3.4-3 before then, ask the human whether to land the fix sooner in a small PR of its own.
+- **Playwright retries once in CI.** A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
 - **Manual test still open:** MT1.1-1 (CI goes red on a failing test). The checklist is on #2.
 - **Decision recorded on #5:** labels stay `service`/`level`/`env`, and ASWF uses Loki, so S6.1 needs no translation section. The human still has to update the spec's "Decided" list.
 - **Not for an agent:** #4 (S1.3, Mac pull test), #29 (S5.7, timed Mac setup), #37 (dry run), #30 (GHCR fallback, only if #4 fails), #34 (S6.3, the answer key; it stays out of this repo).
 
 ## Next steps
 
-1. **Finish S4.1** on `claude/s4.1-incident-switch`. That branch is based on `claude/s3.5-deploy-annotations`, so it includes M1–M3.
+1. **Finish S4.1** on `claude/s4.1-incident-switch`. That branch already has `main` (M1–M3) merged into it.
    - Run every test layer from a cold stack, with `INCIDENT_DURATION=15s`. The unit tests, bats, shellcheck, and T4.1-6/T4.1-8 already passed on a warm stack.
    - Remove "(WIP)" from the commit subject in the next commit message.
 2. **S4.2 (#19, incident B)** has no pending decision. Build it next.
 3. **Before S4.3 and S4.4,** ask the human about decisions 2–4 below.
-4. **Open one M4 PR** once S4.1–S4.4 are done and verified.
-   - Base it on `main` if #50 has merged by then. Otherwise base it on `claude/s3.5-deploy-annotations` and say in the PR that it's stacked on #50.
-   - Include the M4 verification section.
+4. **Open one M4 PR, based on `main`,** once S4.1–S4.4 are done and verified. Include the M4 verification section.
 5. Then M5. S5.1/S5.2/S5.6 could have started after S2.3 + S3.1, but the rule above is one milestone at a time, then M6.
 
 ## Decisions pending (ask the human; don't decide alone)
