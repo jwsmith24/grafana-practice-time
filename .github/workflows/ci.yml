@@ -86,7 +86,7 @@ jobs:
         if: failure()
         run: |
           docker compose -f docker-compose.yml -f docker-compose.test.yml ps -a
-          docker compose -f docker-compose.yml -f docker-compose.test.yml logs --no-color
+          docker compose -f docker-compose.yml -f docker-compose.test.yml logs --no-color --tail=200
 
       - name: Stop stack
         if: always()

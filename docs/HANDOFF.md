@@ -16,7 +16,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 5. **Stop and ask the human** about anything under "Decisions pending". Don't decide alone.
 6. **Prove it before you push.** Run the suite against a *fresh* stack (`down -v`, then `up`). Several bugs in this project only showed up on a cold stack.
 
-## Status (2026-10-21)
+## Status (2026-10-21, 20:00 UTC)
 
 | Milestone | State | Where |
 |---|---|---|
@@ -27,7 +27,10 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 | M5 Setup tooling (#23–#30) | Not started | |
 | M6 Materials (#32, #33, #35) | Not started | |
 
-- **PR #50** (`claude/s3.5-deploy-annotations` → `main`) holds M1–M3 together. They were consolidated after an earlier stack of per-slice PRs (#40–#49, now closed). That PR predates the one-milestone rule. If the human asks for it to be split, the per-slice branches still exist. The milestone boundaries are `claude/s1.2-alloy-pipeline` (end of M1), `claude/s2.4-red-herring` (end of M2), and `claude/s3.5-deploy-annotations` (end of M3).
+- **PR #50** (`claude/s3.5-deploy-annotations` → `main`) holds M1–M3 together. Its description has a verification section for each milestone.
+  - **Check CI on its latest head first.** The last fix (deploy annotations switched off in the data-link e2e helper) passed locally 8 of 8 but hadn't reported in CI at handoff time. Before that fix, T3.4-3 failed about half the time in CI.
+  - Playwright retries once in CI. A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
+  - It was consolidated from an earlier stack of per-slice PRs (#40–#49, now closed). It predates the one-milestone rule. If the human asks for it to be split, the per-slice branches still exist. The milestone boundaries are `claude/s1.2-alloy-pipeline` (end of M1), `claude/s2.4-red-herring` (end of M2), and `claude/s3.5-deploy-annotations` (end of M3).
 - **Manual test still open:** MT1.1-1 (CI goes red on a failing test). The checklist is on #2.
 - **Decision recorded on #5:** labels stay `service`/`level`/`env`, and ASWF uses Loki, so S6.1 needs no translation section. The human still has to update the spec's "Decided" list.
 - **Not for an agent:** #4 (S1.3, Mac pull test), #29 (S5.7, timed Mac setup), #37 (dry run), #30 (GHCR fallback, only if #4 fails), #34 (S6.3, the answer key; it stays out of this repo).
@@ -126,7 +129,9 @@ tests/scripts             bats tests for incident.sh with a stubbed docker (S4.1
 - **bats and shellcheck** aren't preinstalled: `apt-get install -y bats shellcheck`.
 - **New Prometheus series.** On a fresh stack, the first 5xx creates a new `http_requests_total{status="502"}` series, and `rate()` reads 0 until the counter rises between two scrapes. Any test that forces errors must keep them coming across at least 2 scrapes (more than 10 s).
 - **Test order matters.** Go runs test files in name order. `baseline_test.go` (no ERROR lines in the last 2 min) runs before tests that deliberately create errors. Incident tests will create a lot of errors, so keep baseline assertions first, or scope them by time.
-- **Docker isn't running at session start:** run `dockerd &`, then wait for `docker info`.
+- **Docker isn't running at session start, and the daemon can die mid-session.** Start it with `dockerd > <scratchpad>/dockerd.log 2>&1 &`, then wait for `docker info`. If you get `ERR_CONNECTION_REFUSED` or "Cannot connect to the Docker daemon" partway through, restart it and run `compose up -d --wait` again.
+- **The CI log can be hard to read.** On failure, CI dumps compose logs (capped at 200 lines per service), and the failing step's output sits above that dump. Downloading the raw log from the blob URL is blocked by the sandbox proxy (403). Use the GitHub `get_job_logs` tool with a `tail_lines` large enough to reach the step.
+- **Deploy annotations and canvas clicks.** The yellow deploy-annotation lines cross every timeseries panel. Any e2e test that clicks on a series line must switch the **Deploys** toggle off first (`followDataLink` does this).
 
 ## Public repo: don't leak the answers
 
