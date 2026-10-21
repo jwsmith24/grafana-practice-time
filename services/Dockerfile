@@ -11,11 +11,13 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
 
 FROM scratch AS inventory
 COPY --from=build /out/inventory /inventory
+COPY --from=build /out/labctl /labctl
 EXPOSE 8080
 ENTRYPOINT ["/inventory"]
 
 FROM scratch AS orders
 COPY --from=build /out/orders /orders
+COPY --from=build /out/labctl /labctl
 EXPOSE 8080
 ENTRYPOINT ["/orders"]
 

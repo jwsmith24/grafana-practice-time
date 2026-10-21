@@ -61,8 +61,10 @@ services:
     image: grafana-lab/inventory:dev
     environment:
       SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
+      INCIDENT_DURATION: ${INCIDENT_DURATION:-3m}
     volumes:
       - lab-logs:/var/log/lab
+      - lab-state:/var/lib/lab
     healthcheck:
       test: ["CMD", "/inventory", "-healthcheck"]
       interval: 5s
@@ -79,8 +81,10 @@ services:
     environment:
       SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
       INVENTORY_URL: http://inventory:8080
+      INCIDENT_DURATION: ${INCIDENT_DURATION:-3m}
     volumes:
       - lab-logs:/var/log/lab
+      - lab-state:/var/lib/lab
     depends_on:
       inventory:
         condition: service_healthy
@@ -145,6 +149,7 @@ services:
 
 volumes:
   lab-logs:
+  lab-state:
   loki-data:
   alloy-data:
   prometheus-data:
