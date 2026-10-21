@@ -23,7 +23,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 | M1 Log foundation (S1.1 #2, S1.2 #3) | **Merged** | PR #50 |
 | M2 Services (S2.1–S2.4: #7–#10) | **Merged** | PR #50 |
 | M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | **Merged** | PR #50 |
-| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1 written, **not yet verified on a cold stack**, no PR | branch `claude/s4.1-incident-switch` |
+| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1 done and verified on a cold stack; S4.2 next; no PR | branch `claude/practical-brown-l9t5pe` (continues `claude/s4.1-incident-switch`) |
 | M5 Setup tooling (#23–#30) | Not started | |
 | M6 Materials (#32, #33, #35) | Not started | |
 
@@ -39,9 +39,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 
 ## Next steps
 
-1. **Finish S4.1** on `claude/s4.1-incident-switch`. That branch already has `main` (M1–M3) merged into it.
-   - Run every test layer from a cold stack, with `INCIDENT_DURATION=15s`. The unit tests, bats, shellcheck, and T4.1-6/T4.1-8 already passed on a warm stack.
-   - Remove "(WIP)" from the commit subject in the next commit message.
+1. ~~Finish S4.1~~: every test layer passed on a cold stack with `INCIDENT_DURATION=15s` (T4.1-6 cleared in 15.7 s; e2e 3/3, none flaky).
 2. **S4.2 (#19, incident B)** has no pending decision. Build it next.
 3. **Before S4.3 and S4.4,** ask the human about decisions 2–4 below.
 4. **Open one M4 PR, based on `main`,** once S4.1–S4.4 are done and verified. Include the M4 verification section.
