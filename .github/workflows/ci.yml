@@ -46,7 +46,8 @@ jobs:
       - name: Script checks
         run: |
           sudo apt-get install -y -q bats shellcheck >/dev/null
-          shellcheck incident.sh
+          shellcheck incident.sh check.sh
+          docker run --rm -v "$PWD:/w:ro" -w /w bash:3.2.57 bash -n check.sh incident.sh
           bats tests/scripts
 
       - name: Validate compose
@@ -91,3 +92,36 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
+
+  # Tests that start, stop, reset or break the stack themselves, using the
+  # attendee compose file alone. They run beside the main job.
+  lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LIFECYCLE_OFFLINE: "1"
+      LAB_SOAK: ${{ github.event_name == 'schedule' && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/go.mod
+          cache: false
+
+      - name: Build service images
+        run: docker compose build
+
+      - name: Lifecycle tests
+        working-directory: tests
+        run: go test -tags lifecycle -count=1 -timeout 55m -v ./lifecycle/...
+
+      - name: Compose logs
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=200
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
