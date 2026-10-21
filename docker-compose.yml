@@ -2,7 +2,7 @@ name: grafana-lab
 
 services:
   loki:
-    image: grafana/loki:3.5.7
+    image: ${IMAGE_REGISTRY:-docker.io}/grafana/loki:${LOKI_TAG:-3.5.7}
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.7.3
+    image: ${IMAGE_REGISTRY:-docker.io}/prom/prometheus:${PROMETHEUS_TAG:-v3.7.3}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
 
   alloy:
-    image: grafana/alloy:v1.11.3
+    image: ${IMAGE_REGISTRY:-docker.io}/grafana/alloy:${ALLOY_TAG:-v1.11.3}
     command:
       - run
       - /etc/alloy/config.alloy
@@ -58,6 +58,9 @@ services:
     build:
       context: services
       target: inventory
+      args: &build-args
+        IMAGE_REGISTRY: ${IMAGE_REGISTRY:-docker.io}
+        GO_TAG: ${GO_TAG:-1.24.9-alpine}
     image: grafana-lab/inventory:dev
     environment:
       SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
@@ -77,6 +80,7 @@ services:
     build:
       context: services
       target: orders
+      args: *build-args
     image: grafana-lab/orders:dev
     environment:
       SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
@@ -100,6 +104,7 @@ services:
     build:
       context: services
       target: loadgen
+      args: *build-args
     image: grafana-lab/loadgen:dev
     environment:
       TARGET_URL: http://orders:8080
@@ -117,7 +122,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:12.2.1
+    image: ${IMAGE_REGISTRY:-docker.io}/grafana/grafana:${GRAFANA_TAG:-12.2.1}
     ports:
       - "${GRAFANA_PORT:-3300}:3000"
     environment:
