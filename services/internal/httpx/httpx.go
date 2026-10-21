@@ -41,9 +41,19 @@ func RequestID(ctx context.Context) string {
 }
 
 // requestLog collects attributes handlers add to the request's log line.
-type requestLog struct{ attrs []any }
+type requestLog struct {
+	attrs []any
+	level *slog.Level
+}
 
 type logKey struct{}
+
+// SetLevel overrides the level of the request's log line.
+func SetLevel(ctx context.Context, level slog.Level) {
+	if l, ok := ctx.Value(logKey{}).(*requestLog); ok {
+		l.level = &level
+	}
+}
 
 // Annotate adds key/value attributes to the request's log line.
 func Annotate(ctx context.Context, args ...any) {
@@ -96,6 +106,9 @@ func Instrument(logger *slog.Logger, obs Observer, h http.Handler, skip ...strin
 		level := slog.LevelInfo
 		if rec.status >= 500 {
 			level = slog.LevelError
+		}
+		if rl.level != nil {
+			level = *rl.level
 		}
 		attrs := append([]any{
 			"request_id", id,

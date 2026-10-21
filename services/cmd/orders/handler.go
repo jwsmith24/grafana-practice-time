@@ -77,8 +77,9 @@ func (s *server) create(w http.ResponseWriter, r *http.Request) {
 		if reason := upstreamReason(err); reason != "" {
 			s.upstreamErrors.WithLabelValues(reason).Inc()
 		}
-		if status >= 500 {
+		if status >= 500 || errors.Is(err, errNotFound) {
 			httpx.Annotate(ctx, "error", err.Error())
+			httpx.SetLevel(ctx, slog.LevelError)
 		}
 		httpx.WriteJSON(w, status, map[string]string{"error": http.StatusText(status)})
 		return

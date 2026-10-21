@@ -58,6 +58,9 @@ func TestUpstreamErrorMetrics(t *testing.T) {
 		if rec := h.do("POST", "/orders", orderBody, nil); rec.Code != 404 {
 			t.Fatalf("status %d, want 404", rec.Code)
 		}
+		if l := h.logLine(t); l["level"] != "ERROR" || l["error"] != "item not found" {
+			t.Fatalf("log line %v, want ERROR with error=item not found", l)
+		}
 		if err := testutil.GatherAndCompare(h.m.Registry, strings.NewReader(upstreamWant("")), "inventory_upstream_errors_total"); err != nil {
 			t.Fatal(err)
 		}

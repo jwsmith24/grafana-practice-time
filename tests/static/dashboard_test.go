@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -125,5 +126,26 @@ func walk(v any, path string, f func(string, any)) {
 		for i, c := range x {
 			walk(c, fmt.Sprintf("%s[%d]", path, i), f)
 		}
+	}
+}
+
+// T3.3-1, T3.3-2
+func TestLokiPanels(t *testing.T) {
+	d, _ := loadDashboard(t)
+	volume := panelByTitle(t, d, "Error log volume by service")
+	recent := panelByTitle(t, d, "Recent errors")
+	for _, p := range []panel{volume, recent} {
+		if p.Datasource == nil || p.Datasource.UID != "loki" {
+			t.Errorf("%s: datasource %+v, want uid loki", p.Title, p.Datasource)
+		}
+		if len(p.Targets) != 1 || !strings.Contains(p.Targets[0].Expr, `level="ERROR"`) {
+			t.Errorf("%s: targets %+v, want a level=\"ERROR\" query", p.Title, p.Targets)
+		}
+	}
+	if recent.Type != "logs" {
+		t.Errorf("Recent errors is a %q panel, want logs", recent.Type)
+	}
+	if want := `sum by (service) (count_over_time({env="lab", level="ERROR"}[1m]))`; len(volume.Targets) == 1 && volume.Targets[0].Expr != want {
+		t.Errorf("volume expr %q, want %q", volume.Targets[0].Expr, want)
 	}
 }

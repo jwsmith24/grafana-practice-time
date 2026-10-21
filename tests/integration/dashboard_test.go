@@ -3,10 +3,13 @@
 package integration
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -61,28 +64,42 @@ type frameSeries struct {
 	Values []*float64
 }
 
-// panelQuery runs a panel's first target through Grafana's /api/ds/query
-// over the last window and returns one series per frame.
-func panelQuery(t *testing.T, p dashPanel, window time.Duration) []frameSeries {
+// panelRaw runs a panel's first target through Grafana's /api/ds/query
+// over the last window and returns the raw response.
+func panelRaw(t *testing.T, p dashPanel, window time.Duration) []byte {
 	t.Helper()
 	if len(p.Targets) == 0 {
 		t.Fatalf("panel %q has no targets", p.Title)
 	}
 	tg := p.Targets[0]
+	query := map[string]any{
+		"refId":      tg.RefID,
+		"datasource": tg.Datasource,
+		"expr":       tg.Expr,
+		"range":      true,
+	}
+	if tg.Datasource["type"] == "loki" {
+		query["queryType"] = "range"
+		query["maxLines"] = 1000
+	}
 	q := map[string]any{
-		"from": fmt.Sprintf("now-%dm", int(window.Minutes())),
-		"to":   "now",
-		"queries": []map[string]any{{
-			"refId":      tg.RefID,
-			"datasource": tg.Datasource,
-			"expr":       tg.Expr,
-			"range":      true,
-		}},
+		"from":    fmt.Sprintf("now-%dm", int(window.Minutes())),
+		"to":      "now",
+		"queries": []map[string]any{query},
 	}
 	code, b := do(t, "POST", "/api/ds/query", q, false)
 	if code != 200 {
 		t.Fatalf("%s: status %d: %s", p.Title, code, b)
 	}
+	return b
+}
+
+// panelQuery runs a panel's first target and returns one numeric series per
+// frame.
+func panelQuery(t *testing.T, p dashPanel, window time.Duration) []frameSeries {
+	t.Helper()
+	tg := p.Targets
+	b := panelRaw(t, p, window)
 	var r struct {
 		Results map[string]struct {
 			Error  string `json:"error"`
@@ -99,7 +116,7 @@ func panelQuery(t *testing.T, p dashPanel, window time.Duration) []frameSeries {
 		} `json:"results"`
 	}
 	decode(t, b, &r)
-	res := r.Results[tg.RefID]
+	res := r.Results[tg[0].RefID]
 	if res.Error != "" {
 		t.Fatalf("%s: %s", p.Title, res.Error)
 	}
@@ -150,5 +167,65 @@ func TestOverviewPanelsHaveData(t *testing.T) {
 	}
 	if !finite {
 		t.Errorf("p95 latency has no finite values: %+v", p95)
+	}
+}
+
+// T3.3-3
+func TestLokiPanelsRun(t *testing.T) {
+	panels := dashboardPanels(t)
+	for _, title := range []string{"Error log volume by service", "Recent errors"} {
+		b := panelRaw(t, panels[title], 5*time.Minute)
+		var r struct {
+			Results map[string]struct {
+				Error string `json:"error"`
+			} `json:"results"`
+		}
+		decode(t, b, &r)
+		for ref, res := range r.Results {
+			if res.Error != "" {
+				t.Errorf("%s %s: %s", title, ref, res.Error)
+			}
+		}
+	}
+}
+
+// T3.3-4: an order for an unknown item makes orders log an ERROR, which
+// both panels must show.
+func TestLokiPanelsShowErrors(t *testing.T) {
+	id := newUUID(t)
+	req, err := http.NewRequest("POST", ordersURL()+"/orders", strings.NewReader(`{"item_id":"SKU-0000","quantity":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Request-ID", id)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Fatalf("POST /orders unknown item: status %d, want 404", resp.StatusCode)
+	}
+
+	panels := dashboardPanels(t)
+	var volume float64
+	ok := eventually(t, 30*time.Second, func() bool {
+		volume = 0
+		for _, s := range panelQuery(t, panels["Error log volume by service"], 5*time.Minute) {
+			if s.Labels["service"] != "orders" {
+				continue
+			}
+			for _, v := range s.Values {
+				if v != nil {
+					volume += *v
+				}
+			}
+		}
+		return volume > 0 && bytes.Contains(panelRaw(t, panels["Recent errors"], 5*time.Minute), []byte(id))
+	})
+	if !ok {
+		t.Fatalf("orders error volume %v; recent errors panel has request_id %s: %v", volume, id,
+			bytes.Contains(panelRaw(t, panels["Recent errors"], 5*time.Minute), []byte(id)))
 	}
 }
