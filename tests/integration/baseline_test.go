@@ -21,7 +21,7 @@ func TestRedHerringRate(t *testing.T) {
 // T2.4-3 (lab AC6, baseline)
 func TestRedHerringIsTopWarn(t *testing.T) {
 	waitForUptime(t, "inventory", 30*time.Second)
-	res := lokiVector(t, `topk(1, sum by (msg) (count_over_time({env="lab", level="WARN"} | json [5m])))`)
+	res := lokiVector(t, `topk(1, sum by (msg) (count_over_time({level="WARN"} | json [5m])))`)
 	if len(res) != 1 {
 		t.Fatalf("want 1 top WARN msg, got %v", res)
 	}
@@ -33,7 +33,7 @@ func TestRedHerringIsTopWarn(t *testing.T) {
 // T2.4-4
 func TestHealthyBaseline(t *testing.T) {
 	waitForUptime(t, "loadgen", 2*time.Minute)
-	if res := lokiVector(t, `count_over_time({env="lab", level="ERROR"}[2m])`); len(res) != 0 {
+	if res := lokiVector(t, `count_over_time({level="ERROR"}[2m])`); len(res) != 0 {
 		t.Fatalf("ERROR lines at baseline: %v", res)
 	}
 	if n := countLines(lokiQuery(t, `{service="orders"} | json | status>=500`, 2*time.Minute)); n != 0 {
