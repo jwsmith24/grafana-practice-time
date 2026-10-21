@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/httpx"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/incident"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
 )
@@ -37,7 +38,9 @@ func main() {
 	reload := time.NewTicker(configReloadInterval)
 	defer reload.Stop()
 	go watchConfig(context.Background(), logger, settings, reload.C)
-	srv := &http.Server{Addr: ":" + port, Handler: newHandler(logger, os.Getenv("SERVICE_TOKEN"), metrics.NewHTTP(service))}
+	lab := incident.New(httpx.Getenv("LAB_STATE_FILE", "/var/lib/lab/state.json"), 0)
+	st := store{mode: lab.Active, sleep: time.Sleep}
+	srv := &http.Server{Addr: ":" + port, Handler: newHandler(logger, os.Getenv("SERVICE_TOKEN"), metrics.NewHTTP(service), st)}
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("server stopped", "error", err.Error())
 		os.Exit(1)

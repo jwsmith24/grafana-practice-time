@@ -12,7 +12,7 @@ import (
 // T3.1-1 (inventory)
 func TestRequestMetrics(t *testing.T) {
 	m := metrics.NewHTTP(service)
-	h := newHandler(slog.New(slog.DiscardHandler), testToken, m)
+	h := newHandler(slog.New(slog.DiscardHandler), testToken, m, store{})
 	serve(t, h, "/inventory/SKU-1001", nil)
 	serve(t, h, "/inventory/nope", nil)
 	serve(t, h, "/healthz", nil)
@@ -37,7 +37,7 @@ http_requests_total{endpoint="GET /inventory/{item_id}",service="inventory",stat
 // T3.1-2
 func TestEndpointIsRouteTemplate(t *testing.T) {
 	m := metrics.NewHTTP(service)
-	h := newHandler(slog.New(slog.DiscardHandler), testToken, m)
+	h := newHandler(slog.New(slog.DiscardHandler), testToken, m, store{})
 	for _, id := range []string{"SKU-1001", "SKU-1002", "SKU-1003"} {
 		serve(t, h, "/inventory/"+id, nil)
 	}
