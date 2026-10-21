@@ -3,6 +3,7 @@ package static
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -11,11 +12,19 @@ import (
 const dashboardPath = "../../grafana/provisioning/dashboards/lab-overview.json"
 
 type panel struct {
-	ID         int            `json:"id"`
-	Title      string         `json:"title"`
-	Type       string         `json:"type"`
-	Datasource *datasourceRef `json:"datasource"`
-	Targets    []target       `json:"targets"`
+	ID          int            `json:"id"`
+	Title       string         `json:"title"`
+	Type        string         `json:"type"`
+	Datasource  *datasourceRef `json:"datasource"`
+	Targets     []target       `json:"targets"`
+	FieldConfig struct {
+		Defaults struct {
+			Links []struct {
+				Title string `json:"title"`
+				URL   string `json:"url"`
+			} `json:"links"`
+		} `json:"defaults"`
+	} `json:"fieldConfig"`
 }
 
 type datasourceRef struct {
@@ -147,5 +156,60 @@ func TestLokiPanels(t *testing.T) {
 	}
 	if want := `sum by (service) (count_over_time({env="lab", level="ERROR"}[1m]))`; len(volume.Targets) == 1 && volume.Targets[0].Expr != want {
 		t.Errorf("volume expr %q, want %q", volume.Targets[0].Expr, want)
+	}
+}
+
+// T3.4-1
+func TestPrometheusPanelDataLinks(t *testing.T) {
+	d, _ := loadDashboard(t)
+	n := 0
+	for _, p := range d.Panels {
+		if p.Datasource == nil || p.Datasource.UID != "prometheus" {
+			continue
+		}
+		n++
+		links := p.FieldConfig.Defaults.Links
+		if len(links) != 1 {
+			t.Errorf("%s: %d data links, want 1", p.Title, len(links))
+			continue
+		}
+		u, err := url.Parse(links[0].URL)
+		if err != nil {
+			t.Errorf("%s: %v", p.Title, err)
+			continue
+		}
+		if u.Path != "/explore" {
+			t.Errorf("%s: link path %q, want /explore", p.Title, u.Path)
+		}
+		var panes map[string]struct {
+			Datasource string `json:"datasource"`
+			Queries    []struct {
+				Expr       string         `json:"expr"`
+				Datasource *datasourceRef `json:"datasource"`
+			} `json:"queries"`
+			Range struct{ From, To string } `json:"range"`
+		}
+		if err := json.Unmarshal([]byte(u.Query().Get("panes")), &panes); err != nil {
+			t.Errorf("%s: panes: %v", p.Title, err)
+			continue
+		}
+		pane, ok := panes["a"]
+		if !ok || len(panes) != 1 {
+			t.Errorf("%s: want a single pane \"a\", got %v", p.Title, panes)
+			continue
+		}
+		if pane.Datasource != "loki" || len(pane.Queries) != 1 || pane.Queries[0].Datasource == nil || pane.Queries[0].Datasource.UID != "loki" {
+			t.Errorf("%s: pane is not on datasource loki: %+v", p.Title, pane)
+			continue
+		}
+		if want := `{service="${__field.labels.service}"}`; pane.Queries[0].Expr != want {
+			t.Errorf("%s: expr %q, want %q", p.Title, pane.Queries[0].Expr, want)
+		}
+		if pane.Range.From != "${__from}" || pane.Range.To != "${__to}" {
+			t.Errorf("%s: range %+v, want ${__from} to ${__to}", p.Title, pane.Range)
+		}
+	}
+	if n != 3 {
+		t.Fatalf("%d Prometheus panels, want 3", n)
 	}
 }
