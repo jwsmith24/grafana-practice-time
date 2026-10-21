@@ -77,7 +77,7 @@ Harness decisions (introduced in S1.1):
 2. **Truncated spec cells.**
    - Incident A's discovery path / root-cause evidence (read as "`| json` and `count_over_time` by `item_id` show one item").
    - The cheat-sheet contents after "regex,".
-   Please confirm both.
+   Both are cut off identically in the PDF and the markdown export: the `|` in `| json` breaks the table cell. Please confirm both against the original doc.
 3. **Deadline.** M1–M6 are due Oct 22, 2026, the day after this plan was written. If anything slips, prioritize the critical path above. The worksheet and cheat sheet (M6) block the dry run; the GHCR fallback (S5.8) is conditional.
 4. **The incident A signal may be faint.** `SKU-1042` is ~2% of ~5 req/s (≈ 0.1 req/s). With a 5 s scrape and a `[1m]` rate window, the 30 s first-signal target is tight. S4.3 makes the SKU weight tunable and decides using T4.3-3.
 5. **Loki adds labels on its own.** Recent Loki versions add `service_name`, and Alloy file sources add `filename`. Both are dropped or disabled so streams carry only `service`, `level`, and `env` (T1.2-2).
