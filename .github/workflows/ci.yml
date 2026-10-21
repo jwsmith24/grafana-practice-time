@@ -19,10 +19,17 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: tests/go.mod
+          go-version-file: services/go.mod
           cache: false
 
-      - name: Unit tests
+      - name: Service unit tests
+        working-directory: services
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test -race ./...
+
+      - name: Static checks
         working-directory: tests
         run: |
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -34,7 +41,7 @@ jobs:
         run: docker compose -f docker-compose.yml -f docker-compose.test.yml config --quiet
 
       - name: Start stack
-        run: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --wait
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build --wait
 
       - name: Integration tests
         working-directory: tests

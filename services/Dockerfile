@@ -1,0 +1,15 @@
+# One build stage for every service; pick one with --target <service>.
+FROM --platform=$BUILDPLATFORM golang:1.24.9-alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /src
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" -o /out/ ./cmd/...
+
+FROM scratch AS inventory
+COPY --from=build /out/inventory /inventory
+EXPOSE 8080
+ENTRYPOINT ["/inventory"]

@@ -37,6 +37,21 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  inventory:
+    build:
+      context: services
+      target: inventory
+    image: grafana-lab/inventory:dev
+    volumes:
+      - lab-logs:/var/log/lab
+    healthcheck:
+      test: ["CMD", "/inventory", "-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    restart: unless-stopped
+
   dummy:
     image: busybox:1.37.0
     command:
