@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // thirdPartyImages returns the compose images that are pulled, not built.
@@ -21,10 +22,30 @@ func thirdPartyImages(t *testing.T) []string {
 	return out
 }
 
+// inspectImage reads img's manifest list from its registry, retrying when
+// Docker Hub rate-limits anonymous requests (429).
+func inspectImage(t *testing.T, img string) string {
+	t.Helper()
+	var out string
+	var code int
+	for wait := 10 * time.Second; wait <= 80*time.Second; wait *= 2 {
+		out, code = run(t, nil, "docker", "buildx", "imagetools", "inspect", img)
+		if code == 0 || !strings.Contains(out, "429") {
+			break
+		}
+		t.Logf("%s: rate-limited, retrying in %s", img, wait)
+		time.Sleep(wait)
+	}
+	if code != 0 {
+		t.Fatalf("docker buildx imagetools inspect %s: exit %d\n%s", img, code, out)
+	}
+	return out
+}
+
 // T5.1-3
 func TestMultiArch(t *testing.T) {
 	for _, img := range thirdPartyImages(t) {
-		out := must(t, nil, "docker", "buildx", "imagetools", "inspect", img)
+		out := inspectImage(t, img)
 		for _, p := range []string{"linux/amd64", "linux/arm64"} {
 			if !regexp.MustCompile(`Platform:\s+` + p + `\b`).MatchString(out) {
 				t.Errorf("%s has no %s image", img, p)
