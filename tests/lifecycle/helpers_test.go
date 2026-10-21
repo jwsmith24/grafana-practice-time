@@ -4,10 +4,13 @@ package lifecycle
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -94,4 +97,46 @@ func grafanaGet(port int, path string) (int, string, error) {
 	var b bytes.Buffer
 	_, _ = b.ReadFrom(resp.Body)
 	return resp.StatusCode, b.String(), nil
+}
+
+// proxyGet fetches a datasource proxy path through Grafana on 3300 and
+// decodes the JSON response into v.
+func proxyGet(t *testing.T, uid, path string, q url.Values, v any) {
+	t.Helper()
+	u := "/api/datasources/proxy/uid/" + uid + path
+	if q != nil {
+		u += "?" + q.Encode()
+	}
+	code, body, err := grafanaGet(3300, u)
+	if err != nil || code != 200 {
+		t.Fatalf("GET %s: %d %v %s", u, code, err, body)
+	}
+	if err := json.Unmarshal([]byte(body), v); err != nil {
+		t.Fatalf("GET %s: %v", u, err)
+	}
+}
+
+// lokiLines returns the raw lines matching a LogQL query in [start, end].
+func lokiLines(t *testing.T, query string, start, end time.Time) []string {
+	t.Helper()
+	var r struct {
+		Data struct {
+			Result []struct {
+				Values [][2]string `json:"values"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	proxyGet(t, "loki", "/loki/api/v1/query_range", url.Values{
+		"query": {query},
+		"start": {strconv.FormatInt(start.UnixNano(), 10)},
+		"end":   {strconv.FormatInt(end.UnixNano(), 10)},
+		"limit": {"5000"},
+	}, &r)
+	var out []string
+	for _, s := range r.Data.Result {
+		for _, v := range s.Values {
+			out = append(out, v[1])
+		}
+	}
+	return out
 }

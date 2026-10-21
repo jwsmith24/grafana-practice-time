@@ -176,3 +176,30 @@ func TestNoRuntimePlugins(t *testing.T) {
 		}
 	}
 }
+
+// T5.3-4: data lives in named volumes, which down -v removes; bind mounts
+// are read-only config files from this repo.
+func TestStateInNamedVolumes(t *testing.T) {
+	for svc, s := range composeServices(t) {
+		for _, v := range s.Volumes {
+			switch {
+			case v.Type == "volume":
+			case v.Type == "bind" && !v.ReadOnly:
+				t.Errorf("%s: bind mount %s → %s is writable", svc, v.Source, v.Target)
+			case v.Type == "bind" && !isConfig(v.Source):
+				t.Errorf("%s: bind mount %s is not a config file from the repo", svc, v.Source)
+			case v.Type != "bind":
+				t.Errorf("%s: %s mount %s", svc, v.Type, v.Target)
+			}
+		}
+	}
+}
+
+func isConfig(source string) bool {
+	for _, dir := range []string{"/loki/", "/prometheus/", "/alloy/", "/grafana/provisioning"} {
+		if strings.Contains(source, dir) {
+			return true
+		}
+	}
+	return false
+}
