@@ -141,9 +141,23 @@ func eventually(t *testing.T, timeout time.Duration, f func() bool) bool {
 	}
 }
 
-// lokiInstant runs an instant LogQL metric query that returns one series and
-// returns its value.
-func lokiInstant(t *testing.T, query string) float64 {
+type lokiSample struct {
+	Metric map[string]string `json:"metric"`
+	Value  [2]any            `json:"value"`
+}
+
+func (s lokiSample) float(t *testing.T) float64 {
+	t.Helper()
+	str, _ := s.Value[1].(string)
+	f, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		t.Fatalf("sample value %v: %v", s.Value, err)
+	}
+	return f
+}
+
+// lokiVector runs an instant LogQL metric query and returns its samples.
+func lokiVector(t *testing.T, query string) []lokiSample {
 	t.Helper()
 	v := url.Values{"query": {query}, "time": {strconv.FormatInt(time.Now().UnixNano(), 10)}}
 	code, b := do(t, "GET", lokiAPI+"/query?"+v.Encode(), nil, false)
@@ -152,19 +166,36 @@ func lokiInstant(t *testing.T, query string) float64 {
 	}
 	var r struct {
 		Data struct {
-			Result []struct {
-				Value [2]any `json:"value"`
-			} `json:"result"`
+			Result []lokiSample `json:"result"`
 		} `json:"data"`
 	}
 	decode(t, b, &r)
-	if len(r.Data.Result) != 1 {
-		t.Fatalf("query %q: want 1 series, got %d: %s", query, len(r.Data.Result), b)
+	return r.Data.Result
+}
+
+// lokiInstant runs an instant LogQL metric query that must return exactly
+// one series and returns its value.
+func lokiInstant(t *testing.T, query string) float64 {
+	t.Helper()
+	res := lokiVector(t, query)
+	if len(res) != 1 {
+		t.Fatalf("query %q: want 1 series, got %d: %v", query, len(res), res)
 	}
-	s, _ := r.Data.Result[0].Value[1].(string)
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		t.Fatalf("query %q: value %v: %v", query, r.Data.Result[0].Value, err)
+	return res[0].float(t)
+}
+
+// waitForUptime blocks until service's startup line is at least d old, so
+// rate windows are full.
+func waitForUptime(t *testing.T, service string, d time.Duration) {
+	t.Helper()
+	waitForLines(t, service)
+	streams := lokiQuery(t, `{service="`+service+`"} | json | event="startup"`, 30*time.Minute)
+	if countLines(streams) == 0 {
+		t.Fatalf("no %s startup line", service)
 	}
-	return f
+	ns, _ := strconv.ParseInt(streams[0].Values[0][0], 10, 64)
+	if wait := time.Until(time.Unix(0, ns).Add(d)); wait > 0 {
+		t.Logf("waiting %s for %s to be up %s", wait.Round(time.Second), service, d)
+		time.Sleep(wait)
+	}
 }

@@ -2,10 +2,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/httpx"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
@@ -31,6 +33,9 @@ func main() {
 	defer closer.Close()
 
 	logStartup(logger, port)
+	reload := time.NewTicker(configReloadInterval)
+	defer reload.Stop()
+	go watchConfig(context.Background(), logger, settings, reload.C)
 	srv := &http.Server{Addr: ":" + port, Handler: newHandler(logger, os.Getenv("SERVICE_TOKEN"))}
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("server stopped", "error", err.Error())
