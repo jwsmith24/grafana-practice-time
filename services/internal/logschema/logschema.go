@@ -84,7 +84,7 @@ func checkField(k string, raw json.RawMessage) error {
 			err = fmt.Errorf("%q is not a UUID v4", s)
 		}
 		return err
-	case "service", "msg", "endpoint", "item_id", "event", "version", "error":
+	case "service", "msg", "endpoint", "item_id", "order_id", "event", "version", "error":
 		_, err := str(raw)
 		return err
 	case "status":

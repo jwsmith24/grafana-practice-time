@@ -4,3 +4,6 @@ services:
   loki:
     ports:
       - "3100:3100"
+  orders:
+    ports:
+      - "8080:8080"

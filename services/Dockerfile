@@ -13,3 +13,8 @@ FROM scratch AS inventory
 COPY --from=build /out/inventory /inventory
 EXPOSE 8080
 ENTRYPOINT ["/inventory"]
+
+FROM scratch AS orders
+COPY --from=build /out/orders /orders
+EXPOSE 8080
+ENTRYPOINT ["/orders"]

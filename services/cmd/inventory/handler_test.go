@@ -9,14 +9,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logschema"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/requestid"
 )
 
+const testToken = "test-token"
+
 func serve(t *testing.T, h http.Handler, path string, hdr http.Header) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest("GET", path, nil)
+	req.Header.Set(auth.Header, testToken)
 	for k, vs := range hdr {
 		for _, v := range vs {
 			req.Header.Add(k, v)
@@ -29,7 +33,7 @@ func serve(t *testing.T, h http.Handler, path string, hdr http.Header) *httptest
 
 // T2.1-1
 func TestHandler(t *testing.T) {
-	h := newHandler(slog.New(slog.DiscardHandler))
+	h := newHandler(slog.New(slog.DiscardHandler), testToken)
 
 	rec := serve(t, h, "/inventory/SKU-1042", nil)
 	if rec.Code != 200 {
@@ -59,7 +63,7 @@ func TestHandler(t *testing.T) {
 func TestLogSchema(t *testing.T) {
 	var buf bytes.Buffer
 	logger := logging.NewWithWriter(service, &buf)
-	h := newHandler(logger)
+	h := newHandler(logger, testToken)
 	id := requestid.New()
 
 	cases := []struct {
@@ -129,5 +133,34 @@ func TestStartupLine(t *testing.T) {
 	}
 	if l.Event != "startup" || l.Version != version || l.Service != service {
 		t.Fatalf("got %+v", l)
+	}
+}
+
+// T2.2-7 (inventory side)
+func TestTokenRequired(t *testing.T) {
+	h := newHandler(slog.New(slog.DiscardHandler), testToken)
+	for _, c := range []struct {
+		name, path, token string
+		want              int
+	}{
+		{"missing", "/inventory/SKU-1001", "", 401},
+		{"bad", "/inventory/SKU-1001", "wrong", 401},
+		{"good", "/inventory/SKU-1001", testToken, 200},
+		{"healthz needs none", "/healthz", "", 200},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", c.path, nil)
+			if c.token != "" {
+				req.Header.Set(auth.Header, c.token)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if rec.Code != c.want {
+				t.Fatalf("status %d, want %d", rec.Code, c.want)
+			}
+		})
+	}
+	if auth.Valid("", "") {
+		t.Fatal("an empty expected token must reject everything")
 	}
 }

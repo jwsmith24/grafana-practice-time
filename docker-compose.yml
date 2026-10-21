@@ -42,10 +42,33 @@ services:
       context: services
       target: inventory
     image: grafana-lab/inventory:dev
+    environment:
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
     volumes:
       - lab-logs:/var/log/lab
     healthcheck:
       test: ["CMD", "/inventory", "-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    restart: unless-stopped
+
+  orders:
+    build:
+      context: services
+      target: orders
+    image: grafana-lab/orders:dev
+    environment:
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
+      INVENTORY_URL: http://inventory:8080
+    volumes:
+      - lab-logs:/var/log/lab
+    depends_on:
+      inventory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/orders", "-healthcheck"]
       interval: 5s
       timeout: 3s
       retries: 30

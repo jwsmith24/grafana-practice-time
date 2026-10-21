@@ -31,7 +31,7 @@ func main() {
 	defer closer.Close()
 
 	logStartup(logger, port)
-	srv := &http.Server{Addr: ":" + port, Handler: newHandler(logger)}
+	srv := &http.Server{Addr: ":" + port, Handler: newHandler(logger, os.Getenv("SERVICE_TOKEN"))}
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("server stopped", "error", err.Error())
 		os.Exit(1)

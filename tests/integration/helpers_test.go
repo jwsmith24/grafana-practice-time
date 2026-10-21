@@ -24,6 +24,8 @@ func envOr(key, def string) string {
 	return def
 }
 
+func ordersURL() string { return envOr("ORDERS_URL", "http://localhost:8080") }
+
 func grafanaURL() string {
 	return envOr("GRAFANA_URL", "http://localhost:"+envOr("GRAFANA_PORT", "3300"))
 }
