@@ -1,7 +1,7 @@
 // Package logging builds the JSON slog logger shared by the lab services.
 //
 // Every line carries time (RFC 3339, millisecond precision, UTC), level
-// (lowercase), msg, and service. Output goes to stdout and to
+// (DEBUG, INFO, WARN or ERROR), msg, and service. Output goes to stdout and to
 // <dir>/<service>.log, which is truncated when the logger is created.
 package logging
 
@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -46,10 +45,6 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 	case slog.TimeKey:
 		if t, ok := a.Value.Any().(time.Time); ok {
 			return slog.String(slog.TimeKey, t.UTC().Format(TimeFormat))
-		}
-	case slog.LevelKey:
-		if l, ok := a.Value.Any().(slog.Level); ok {
-			return slog.String(slog.LevelKey, strings.ToLower(l.String()))
 		}
 	}
 	return a
