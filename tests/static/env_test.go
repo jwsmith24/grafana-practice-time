@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -202,4 +203,22 @@ func isConfig(source string) bool {
 		}
 	}
 	return false
+}
+
+// T5.5-3: every service has a mem_limit, and together they fit in 2 GiB.
+func TestMemoryBudget(t *testing.T) {
+	var total int64
+	for svc, s := range composeServices(t) {
+		str, _ := s.MemLimit.(string)
+		n, err := strconv.ParseInt(str, 10, 64)
+		if err != nil || n <= 0 {
+			t.Errorf("%s: no mem_limit (%v)", svc, s.MemLimit)
+			continue
+		}
+		total += n
+	}
+	if total > 2<<30 {
+		t.Fatalf("mem_limit adds up to %d MiB, more than 2048 MiB", total>>20)
+	}
+	t.Logf("mem_limit total %d MiB", total>>20)
 }

@@ -35,6 +35,7 @@ func TestMultiArch(t *testing.T) {
 	// docker-container driver is needed for a multi-platform build.
 	if _, code := run(t, nil, "docker", "buildx", "inspect", "lab-multiarch"); code != 0 {
 		must(t, nil, "docker", "buildx", "create", "--name", "lab-multiarch", "--driver", "docker-container")
+		t.Cleanup(func() { run(t, nil, "docker", "buildx", "rm", "lab-multiarch") })
 	}
 	for _, target := range []string{"inventory", "orders", "loadgen"} {
 		must(t, nil, "docker", "buildx", "build", "--builder", "lab-multiarch",
