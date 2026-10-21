@@ -1,0 +1,13 @@
+# CI-only override: publishes internal ports the tests need.
+# Attendees use docker-compose.yml alone, which publishes only Grafana.
+services:
+  loki:
+    ports:
+      - "3100:3100"
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  orders:
+    ports:
+      - "8080:8080"
