@@ -16,34 +16,29 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 5. **Stop and ask the human** about anything under "Decisions pending". Don't decide alone.
 6. **Prove it before you push.** Run the suite against a *fresh* stack (`down -v`, then `up`). Several bugs in this project only showed up on a cold stack.
 
-## Status (2026-10-21, 21:00 UTC)
+## Status (2026-10-21, 23:00 UTC)
 
 | Milestone | State | Where |
 |---|---|---|
 | M1 Log foundation (S1.1 #2, S1.2 #3) | **Merged** | PR #50 |
 | M2 Services (S2.1–S2.4: #7–#10) | **Merged** | PR #50 |
 | M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | **Merged** | PR #50 |
-| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1–S4.4 done and verified on a cold stack (15s and nightly 3m); M4 PR open | branch `claude/practical-brown-l9t5pe` (continues `claude/s4.1-incident-switch`) |
-| M5 Setup tooling (#23–#30) | Not started | |
-| M6 Materials (#32, #33, #35) | Not started | |
+| M4 Incidents (S4.1–S4.4: #18–#21) | **Merged** | PR #51 |
+| M5 Setup tooling (S5.1–S5.6: #23–#28) | Done and verified on a cold stack; M5 PR open | branch `claude/practical-brown-l9t5pe` |
+| M6 Materials (#32, #33, #35) | Not started; needs decision 5 first | |
+| M7 Dry run (#37 manual, #38) | Not started | |
 
-- **PR #50 merged M1–M3 into `main`.** It merged just before two follow-up commits landed, so `main` is missing both:
-  - **`e2e: switch off deploy annotations before following a data link`.** Without it, T3.4-3 flakes on `main`: the deploy-annotation line can be mistaken for the series line.
-  - **The refreshed handoff** (this file).
-
-  Both are on `claude/s4.1-incident-switch` and will reach `main` with the M4 PR. If `main` CI flakes on T3.4-3 before then, ask the human whether to land the fix sooner in a small PR of its own.
 - **Playwright retries once in CI.** A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
-- **Manual test still open:** MT1.1-1 (CI goes red on a failing test). The checklist is on #2.
+- **Manual tests still open:** MT1.1-1 (CI goes red on a failing test) on #2; MT5.4-1 (Wi-Fi off) on #26; MT5.5-1 (Docker Desktop memory) on #27. Checklists are on the issues.
 - **Decision recorded on #5:** labels stay `service`/`level`/`env`, and ASWF uses Loki, so S6.1 needs no translation section. The human still has to update the spec's "Decided" list.
 - **Not for an agent:** #4 (S1.3, Mac pull test), #29 (S5.7, timed Mac setup), #37 (dry run), #30 (GHCR fallback, only if #4 fails), #34 (S6.3, the answer key; it stays out of this repo).
+- **Disk prerequisite is tight.** The seven images take 2.34 GB, and the service build adds the Go image and build cache. The README keeps the spec's 3 GB; the human has been told it may need to be 4 GB.
 
 ## Next steps
 
-1. ~~Finish S4.1~~: every test layer passed on a cold stack with `INCIDENT_DURATION=15s` (T4.1-6 cleared in 15.7 s; e2e 3/3, none flaky).
-2. ~~S4.2 (#19)~~: done. T4.2-5 judges inventory lines 6–10 s after expiry, because lookups that started just before expiry may still take up to 4 s. CI's integration step now runs with `-timeout 25m`, so the nightly 3m runs fit.
-3. ~~S4.3 (#20) and S4.4 (#21)~~: done. Decisions 2–4 are settled (see below) and recorded on #20 and #21.
-4. **The M4 PR is open** from `claude/practical-brown-l9t5pe`. Get it green and merged.
-5. Then M5. S5.1/S5.2/S5.6 could have started after S2.3 + S3.1, but the rule above is one milestone at a time, then M6.
+1. **Get the M5 PR green and merged.**
+2. **Before M6,** ask the human about decision 5 (the truncated spec text). Then build S6.1 (#32), S6.2 (#33), and S6.4 (#35). S6.3 (#34, the answer key) stays out of this repo.
+3. M7: #38 follows the human's dry run (#37).
 
 ## Decisions pending (ask the human; don't decide alone)
 
@@ -82,7 +77,13 @@ tests/integration         Go, build tag `integration`; reaches Loki/Prometheus v
                           session_test.go: sorts last; T4.4-7 red herring over the whole run
 tests/e2e                 Playwright 1.56.1 (data links, deploy annotation)
 tests/scripts             bats tests for incident.sh with a stubbed docker
-.github/workflows/ci.yml  unit → static → (bats, shellcheck) → compose up --build --wait → integration → e2e
+tests/lifecycle           Go, build tag `lifecycle`: tests that start, stop, reset or break the stack themselves (check.sh
+                          faults, port conflict, GRAFANA_PORT, reset, offline via iptables, memory soak, image sizes, multi-arch)
+tests/hygiene             denylist scan of tracked files (denylist.txt); gitleaks runs in CI
+check.sh                  bash 3.2 + curl + docker; PASS/FAIL per check with a fix; reaches Loki/Prometheus via Grafana's proxy
+.env.example              GRAFANA_PORT, IMAGE_REGISTRY, pinned tags; compose has the same defaults, so .env is optional
+.github/workflows/ci.yml  job test: unit → static → gitleaks → (shellcheck, bash 3.2 -n, bats) → compose up --build --wait → integration → e2e
+                          job lifecycle (parallel): compose build → go test -tags lifecycle (LIFECYCLE_OFFLINE=1; LAB_SOAK=1 nightly)
 ```
 
 ## Conventions (fixed by the spec and the plan; don't change)
@@ -132,6 +133,9 @@ tests/scripts             bats tests for incident.sh with a stubbed docker
 - **Every incident test calls `waitQuiet` first.** All three letters are real faults now (T4.1-6 switches on A), so wait until orders' 5xx rate is back to 0 before triggering. Otherwise a "5xx > 0 within 30 s" check can pass on leftovers.
 - **Zeroed 5xx series.** Orders initialises `http_requests_total` for `POST /orders` 502/504, and inventory for 500, at 0 (`metrics.HTTP.Init`). Without that, a short burst of errors between two scrapes creates a new series that `rate()` never sees. Incident A's signal failed half the time on a cold stack before this.
 - **Test order matters.** Go runs test files in name order. `baseline_test.go` (no ERROR lines in the last 2 min) runs before tests that deliberately create errors. Incident tests will create a lot of errors, so keep baseline assertions first, or scope them by time.
+- **Don't `pkill -f` a pattern that also appears in your own command line.** It kills the shell running it (exit 144).
+- **The lifecycle tests own the stack.** Don't run them while integration or e2e tests are using it, and don't run two lifecycle tests at once.
+- **Multi-arch builds in the sandbox** need a docker-container builder that trusts the session CA: write a `buildkitd.toml` with `[registry."docker.io"] ca=["<scratchpad>/ca.crt"]`, run `docker buildx create --name sandbox-multiarch --driver docker-container --config <that file>`, and build from a CA-patched Dockerfile copy. Remove the builder afterwards: its container shows up in `docker stats`.
 - **Docker isn't running at session start, and the daemon can die mid-session.** Start it with `dockerd > <scratchpad>/dockerd.log 2>&1 &`, then wait for `docker info`. If you get `ERR_CONNECTION_REFUSED` or "Cannot connect to the Docker daemon" partway through, restart it and run `compose up -d --wait` again.
 - **The CI log can be hard to read.** On failure, CI dumps compose logs (capped at 200 lines per service), and the failing step's output sits above that dump. Downloading the raw log from the blob URL is blocked by the sandbox proxy (403). Use the GitHub `get_job_logs` tool with a `tail_lines` large enough to reach the step.
 - **Deploy annotations and canvas clicks.** The yellow deploy-annotation lines cross every timeseries panel. Any e2e test that clicks on a series line must switch the **Deploys** toggle off first (`followDataLink` does this).
