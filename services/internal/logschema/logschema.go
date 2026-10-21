@@ -24,7 +24,7 @@ const (
 var (
 	timeRe   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`)
 	uuidRe   = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	levels   = map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	levels   = map[string]bool{"DEBUG": true, "INFO": true, "WARN": true, "ERROR": true}
 	required = map[Kind][]string{
 		Base:    {"time", "level", "service", "msg"},
 		Request: {"time", "level", "service", "msg", "request_id", "endpoint", "status", "duration_ms"},
