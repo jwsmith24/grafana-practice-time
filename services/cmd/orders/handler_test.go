@@ -215,10 +215,34 @@ func TestServiceTokenSent(t *testing.T) {
 func TestStartupLine(t *testing.T) {
 	var buf bytes.Buffer
 	logStartup(logging.NewWithWriter(service, &buf), "8080")
-	if err := logschema.Validate(buf.Bytes(), logschema.Startup); err != nil {
+	first, _, _ := strings.Cut(buf.String(), "\n")
+	if err := logschema.Validate([]byte(first), logschema.Startup); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), `"version":"`+version+`"`) {
-		t.Fatalf("no version: %s", buf.String())
+	if !strings.Contains(first, `"version":"`+version+`"`) {
+		t.Fatalf("no version: %s", first)
+	}
+}
+
+// T3.5-1
+func TestDeployEvent(t *testing.T) {
+	var buf bytes.Buffer
+	logStartup(logging.NewWithWriter(service, &buf), "8080")
+	var deploys []map[string]any
+	for _, l := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		if err := logschema.Validate([]byte(l), logschema.Base); err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		_ = json.Unmarshal([]byte(l), &m)
+		if m["event"] == "deploy" {
+			deploys = append(deploys, m)
+		}
+	}
+	if len(deploys) != 1 {
+		t.Fatalf("want 1 deploy line, got %d:\n%s", len(deploys), buf.String())
+	}
+	if deploys[0]["version"] != "1.4.2" || deploys[0]["level"] != "INFO" {
+		t.Fatalf("deploy line %v, want version 1.4.2 at INFO", deploys[0])
 	}
 }

@@ -71,4 +71,5 @@ func main() {
 
 func logStartup(logger *slog.Logger, port string) {
 	logger.Info("service started", "event", "startup", "version", version, "port", port)
+	logger.Info("deploy completed", "event", "deploy", "version", version)
 }

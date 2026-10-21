@@ -35,6 +35,29 @@
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
         "type": "dashboard"
+      },
+      {
+        "name": "Deploys",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "#F2CC0C",
+        "expr": "{service=~\".+\"} | json | event=\"deploy\"",
+        "target": {
+          "refId": "Anno",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service=~\".+\"} | json | event=\"deploy\"",
+          "queryType": "range"
+        },
+        "titleFormat": "Deploy {{service}}",
+        "textFormat": "{{version}}",
+        "tagKeys": "service"
       }
     ]
   },

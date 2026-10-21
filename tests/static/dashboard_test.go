@@ -213,3 +213,44 @@ func TestPrometheusPanelDataLinks(t *testing.T) {
 		t.Fatalf("%d Prometheus panels, want 3", n)
 	}
 }
+
+// T3.5-2
+func TestDeployAnnotation(t *testing.T) {
+	b, err := os.ReadFile(dashboardPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d struct {
+		Annotations struct {
+			List []struct {
+				Name       string         `json:"name"`
+				Enable     bool           `json:"enable"`
+				Datasource *datasourceRef `json:"datasource"`
+				Expr       string         `json:"expr"`
+				Target     struct {
+					Expr string `json:"expr"`
+				} `json:"target"`
+				TextFormat string `json:"textFormat"`
+			} `json:"list"`
+		} `json:"annotations"`
+	}
+	if err := json.Unmarshal(b, &d); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range d.Annotations.List {
+		if a.Datasource == nil || a.Datasource.UID != "loki" || !strings.Contains(a.Expr, `event="deploy"`) {
+			continue
+		}
+		if !a.Enable {
+			t.Error("deploy annotation is disabled")
+		}
+		if a.Target.Expr != a.Expr {
+			t.Errorf("target expr %q != expr %q", a.Target.Expr, a.Expr)
+		}
+		if !strings.Contains(a.TextFormat, "{{version}}") {
+			t.Errorf("textFormat %q does not use version", a.TextFormat)
+		}
+		return
+	}
+	t.Fatal(`no annotation on loki filtered to event="deploy"`)
+}

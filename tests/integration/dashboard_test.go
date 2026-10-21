@@ -31,13 +31,15 @@ func TestHomeDashboard(t *testing.T) {
 	}
 }
 
+type dashTarget struct {
+	RefID      string            `json:"refId"`
+	Datasource map[string]string `json:"datasource"`
+	Expr       string            `json:"expr"`
+}
+
 type dashPanel struct {
-	Title   string `json:"title"`
-	Targets []struct {
-		RefID      string            `json:"refId"`
-		Datasource map[string]string `json:"datasource"`
-		Expr       string            `json:"expr"`
-	} `json:"targets"`
+	Title   string       `json:"title"`
+	Targets []dashTarget `json:"targets"`
 }
 
 func dashboardPanels(t *testing.T) map[string]dashPanel {
@@ -227,5 +229,42 @@ func TestLokiPanelsShowErrors(t *testing.T) {
 	if !ok {
 		t.Fatalf("orders error volume %v; recent errors panel has request_id %s: %v", volume, id,
 			bytes.Contains(panelRaw(t, panels["Recent errors"], 5*time.Minute), []byte(id)))
+	}
+}
+
+// T3.5-3
+func TestDeployAnnotationQuery(t *testing.T) {
+	b, err := os.ReadFile("../../grafana/provisioning/dashboards/lab-overview.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d struct {
+		Annotations struct {
+			List []struct {
+				Name       string            `json:"name"`
+				Datasource map[string]string `json:"datasource"`
+				Expr       string            `json:"expr"`
+			} `json:"list"`
+		} `json:"annotations"`
+	}
+	if err := json.Unmarshal(b, &d); err != nil {
+		t.Fatal(err)
+	}
+	var expr string
+	for _, a := range d.Annotations.List {
+		if a.Name == "Deploys" {
+			expr = a.Expr
+		}
+	}
+	if expr == "" {
+		t.Fatal("no Deploys annotation")
+	}
+	p := dashPanel{Title: "Deploys", Targets: []dashTarget{
+		{RefID: "Anno", Datasource: map[string]string{"type": "loki", "uid": "loki"}, Expr: expr},
+	}}
+	if !eventually(t, 30*time.Second, func() bool {
+		return bytes.Contains(panelRaw(t, p, 15*time.Minute), []byte(`\"event\":\"deploy\"`))
+	}) {
+		t.Fatalf("annotation query %s returned no deploy events", expr)
 	}
 }
