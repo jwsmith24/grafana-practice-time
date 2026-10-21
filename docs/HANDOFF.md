@@ -23,7 +23,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 | M1 Log foundation (S1.1 #2, S1.2 #3) | **Merged** | PR #50 |
 | M2 Services (S2.1–S2.4: #7–#10) | **Merged** | PR #50 |
 | M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | **Merged** | PR #50 |
-| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1–S4.3 done and verified on a cold stack; S4.4 next; no PR | branch `claude/practical-brown-l9t5pe` (continues `claude/s4.1-incident-switch`) |
+| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1–S4.4 done and verified on a cold stack (15s and nightly 3m); M4 PR open | branch `claude/practical-brown-l9t5pe` (continues `claude/s4.1-incident-switch`) |
 | M5 Setup tooling (#23–#30) | Not started | |
 | M6 Materials (#32, #33, #35) | Not started | |
 
@@ -41,14 +41,14 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 
 1. ~~Finish S4.1~~: every test layer passed on a cold stack with `INCIDENT_DURATION=15s` (T4.1-6 cleared in 15.7 s; e2e 3/3, none flaky).
 2. ~~S4.2 (#19)~~: done. T4.2-5 judges inventory lines 6–10 s after expiry, because lookups that started just before expiry may still take up to 4 s. CI's integration step now runs with `-timeout 25m`, so the nightly 3m runs fit.
-3. ~~S4.3 (#20)~~: done. Decisions 2–4 are settled (see below) and recorded on #20 and #21. **S4.4 (#21) is next.**
-4. **Open one M4 PR, based on `main`,** once S4.1–S4.4 are done and verified. Include the M4 verification section.
+3. ~~S4.3 (#20) and S4.4 (#21)~~: done. Decisions 2–4 are settled (see below) and recorded on #20 and #21.
+4. **The M4 PR is open** from `claude/practical-brown-l9t5pe`. Get it green and merged.
 5. Then M5. S5.1/S5.2/S5.6 could have started after S2.3 + S3.1, but the rule above is one milestone at a time, then M6.
 
 ## Decisions pending (ask the human; don't decide alone)
 
 1. ~~#5 label convention~~: resolved, see above.
-2. ~~#21 AC6 conflict~~: **decided** — inventory rate-limits the `auth token rejected` WARN (option (a) on the issue).
+2. ~~#21 AC6 conflict~~: **decided** — inventory rate-limits the `auth token rejected` WARN (option (a) on the issue). Done in S4.4: at most one per 5 s per caller, carrying `rejected` (the count) and `window_s`. `msg` stays constant, so `topk by (msg)` still groups it.
 3. ~~#21 on clear~~: **decided** — orders logs a rollback `event="deploy"` with `version="1.4.2"`.
 4. ~~#20 loadgen weighting~~: **decided** — weight toward `SKU-1042`. Done in S4.3: three "bestsellers" (`SKU-1007`, `SKU-1023`, `SKU-1042`) share 20% of orders, so each gets ~8%. The weighting is always on, so it gives nothing away.
 5. **Truncated spec text** (incident A's discovery path, the cheat-sheet contents): confirm with the human before writing materials (M6).
@@ -63,24 +63,25 @@ alloy/config.alloy        file_match /var/log/lab/*.log → json → timestamp(t
 prometheus/prometheus.yml scrape orders:8080, inventory:8080 every 5s
 grafana/provisioning/     datasources (uid loki = default, uid prometheus); dashboards/lab-overview.json (home)
 services/                 one Go module (client_golang is the only dependency)
-  cmd/inventory           GET /inventory/{item_id}; token auth; config watcher (deprecated-key WARN every 2s)
-  cmd/orders              POST /orders, GET /orders/{id}; inventory client (2s timeout, 504/502); deploy event 1.4.2
+  cmd/inventory           GET /inventory/{item_id}; token auth + rate-limited reject WARN; config watcher (deprecated-key WARN every 2s); store reads the lab mode
+  cmd/orders              POST /orders, GET /orders/{id}; inventory client (2s timeout, 504/502); deploy event 1.4.2; release watcher (deploy events on mode change)
   cmd/loadgen             ~5 req/s to orders; summary line every 10s
-  cmd/labctl              (S4.1 branch) set/clear/status of the lab mode
+  cmd/labctl              set/clear/status of the lab mode
   internal/logging        slog JSON → stdout + /var/log/lab/<svc>.log (truncated on start); time = RFC 3339 ms UTC; levels INFO/WARN/ERROR
   internal/httpx          request log line + metrics observer; Annotate / SetLevel; -healthcheck flag
   internal/metrics        http_requests_total, http_request_duration_seconds
   internal/logschema      strict log-line validator used by the service tests
-  internal/incident       (S4.1 branch) state file on lab-state volume; Status computes expiry (no timers)
+  internal/incident       state file on lab-state volume; Status computes expiry (no timers)
   internal/{auth,catalog,requestid}
   Dockerfile              one cross-compiling build stage; scratch target per service
-incident.sh               (S4.1 branch) bash 3.2; passes only the argument to `docker compose exec -T orders /labctl`
+incident.sh               bash 3.2; passes only the argument to `docker compose exec -T orders /labctl`
 tests/static              Go: compose config, image is static + has no shell, prometheus.yml, dashboard JSON
 tests/integration         Go, build tag `integration`; reaches Loki/Prometheus via Grafana's datasource proxy
                           incident_test.go: T4.1 + shared helpers (incidentSh, waitQuiet, orders5xx, postOrder)
-                          mode_a_test.go, mode_b_test.go: one TestMode<letter> per incident; add mode_c_test.go
+                          mode_{a,b,c}_test.go: one TestMode<letter> per incident
+                          session_test.go: sorts last; T4.4-7 red herring over the whole run
 tests/e2e                 Playwright 1.56.1 (data links, deploy annotation)
-tests/scripts             bats tests for incident.sh with a stubbed docker (S4.1 branch)
+tests/scripts             bats tests for incident.sh with a stubbed docker
 .github/workflows/ci.yml  unit → static → (bats, shellcheck) → compose up --build --wait → integration → e2e
 ```
 

@@ -16,7 +16,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       # Short incidents keep PR runs fast; the nightly run uses the 3m default.
       INCIDENT_DURATION: ${{ github.event_name == 'schedule' && '3m' || '15s' }}

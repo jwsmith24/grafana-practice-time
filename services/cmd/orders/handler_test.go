@@ -20,11 +20,13 @@ import (
 const testToken = "test-token"
 
 // fakeInventory records the headers it receives and replies with status
-// (and stock on 200) after delay.
+// (and stock on 200) after delay. With token set, a request carrying any
+// other token gets 401.
 type fakeInventory struct {
 	status int
 	stock  int
 	delay  time.Duration
+	token  string
 
 	mu      sync.Mutex
 	headers []http.Header
@@ -34,6 +36,10 @@ func (f *fakeInventory) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.headers = append(f.headers, r.Header.Clone())
 	f.mu.Unlock()
+	if f.token != "" && r.Header.Get(auth.Header) != f.token {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	if f.delay > 0 {
 		select {
 		case <-time.After(f.delay):
@@ -57,10 +63,11 @@ func (f *fakeInventory) lastHeader() http.Header {
 }
 
 type harness struct {
-	h    http.Handler
-	m    *metrics.HTTP
-	inv  *fakeInventory
-	logs *bytes.Buffer
+	h      http.Handler
+	m      *metrics.HTTP
+	inv    *fakeInventory
+	client *inventoryClient
+	logs   *bytes.Buffer
 }
 
 func newHarness(t *testing.T, inv *fakeInventory, timeout time.Duration) *harness {
@@ -70,7 +77,8 @@ func newHarness(t *testing.T, inv *fakeInventory, timeout time.Duration) *harnes
 	logs := &bytes.Buffer{}
 	logger := logging.NewWithWriter(service, logs)
 	m := metrics.NewHTTP(service)
-	return &harness{h: newHandler(logger, newInventoryClient(srv.URL, testToken, timeout), m), m: m, inv: inv, logs: logs}
+	client := newInventoryClient(srv.URL, testToken, timeout)
+	return &harness{h: newHandler(logger, client, m), m: m, inv: inv, client: client, logs: logs}
 }
 
 func (h *harness) do(method, path, body string, hdr map[string]string) *httptest.ResponseRecorder {

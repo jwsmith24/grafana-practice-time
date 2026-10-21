@@ -232,8 +232,10 @@ func TestLokiPanelsShowErrors(t *testing.T) {
 	}
 }
 
-// T3.5-3
-func TestDeployAnnotationQuery(t *testing.T) {
+// deployAnnotation returns the dashboard's Deploys annotation query as a
+// panel, so panelRaw can run it.
+func deployAnnotation(t *testing.T) dashPanel {
+	t.Helper()
 	b, err := os.ReadFile("../../grafana/provisioning/dashboards/lab-overview.json")
 	if err != nil {
 		t.Fatal(err)
@@ -259,9 +261,15 @@ func TestDeployAnnotationQuery(t *testing.T) {
 	if expr == "" {
 		t.Fatal("no Deploys annotation")
 	}
-	p := dashPanel{Title: "Deploys", Targets: []dashTarget{
+	return dashPanel{Title: "Deploys", Targets: []dashTarget{
 		{RefID: "Anno", Datasource: map[string]string{"type": "loki", "uid": "loki"}, Expr: expr},
 	}}
+}
+
+// T3.5-3
+func TestDeployAnnotationQuery(t *testing.T) {
+	p := deployAnnotation(t)
+	expr := p.Targets[0].Expr
 	if !eventually(t, 30*time.Second, func() bool {
 		return bytes.Contains(panelRaw(t, p, 15*time.Minute), []byte(`\"event\":\"deploy\"`))
 	}) {

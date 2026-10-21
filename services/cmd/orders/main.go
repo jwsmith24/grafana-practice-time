@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/httpx"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/incident"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
 )
@@ -61,7 +63,13 @@ func main() {
 	defer closer.Close()
 
 	logStartup(logger, cfg.port)
+	lab := incident.New(httpx.Getenv("LAB_STATE_FILE", "/var/lib/lab/state.json"), 0)
+	rel := newRelease(logger, lab.Active)
+	tick := time.NewTicker(releaseCheckInterval)
+	defer tick.Stop()
+	go rel.run(context.Background(), tick.C)
 	inv := newInventoryClient(cfg.inventoryURL, cfg.token, cfg.inventoryTimeout)
+	inv.token = func() string { return tokenFor(rel.Version(), cfg.token) }
 	srv := &http.Server{Addr: ":" + cfg.port, Handler: newHandler(logger, inv, metrics.NewHTTP(service))}
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("server stopped", "error", err.Error())

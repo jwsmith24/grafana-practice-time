@@ -68,7 +68,8 @@ func newHandler(logger *slog.Logger, token string, m *metrics.HTTP, st store) ht
 	})
 	mux.Handle("GET /metrics", m.Handler())
 	mux.HandleFunc("GET /inventory/{item_id}", st.getStock)
-	return httpx.Instrument(logger, m, auth.Require(token, mux, "/healthz", "/metrics"), "/healthz", "/metrics")
+	rl := newRejectLog(logger)
+	return httpx.Instrument(logger, m, auth.RequireNotify(token, mux, rl.note, "/healthz", "/metrics"), "/healthz", "/metrics")
 }
 
 func (s store) getStock(w http.ResponseWriter, r *http.Request) {

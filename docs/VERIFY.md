@@ -79,12 +79,22 @@ curl -s $G/api/dashboards/home | python3 -c 'import json,sys; d=json.load(sys.st
 
 **Automated:** T4.1-x to T4.4-x. The exit tests are T4.2-4, T4.3-4, and T4.4-5.
 
-**By hand:** fill this in with the M4 PR. As a minimum:
+Files: `services/internal/incident`, `services/cmd/labctl`, `tests/scripts/incident.bats`, and `tests/integration/incident_test.go`, `mode_a_test.go`, `mode_b_test.go`, `mode_c_test.go`, `session_test.go`. CI runs them with `INCIDENT_DURATION=15s`. The nightly run uses the 3m default, which makes `session_test.go` a full-session soak.
+
+**By hand**, with the stack started as above (`INCIDENT_DURATION=15s`):
 ```sh
-./incident.sh status    # none
-./incident.sh A         # active: A (15s left)
-./incident.sh status    # active: A (...)
-sleep 16; ./incident.sh status   # none   (with INCIDENT_DURATION=15s; default 3m)
-./incident.sh X; echo $?        # usage on stderr, exit 2
+./incident.sh status            # none
+./incident.sh A                 # active: A (15s left)
+./incident.sh status            # active: A (…s left)
+sleep 16; ./incident.sh status  # none
+./incident.sh X; echo $?        # usage on stderr, then 2
+./incident.sh b                 # active: B (15s left)   (lower case works)
+./incident.sh clear             # cleared
 ```
-Then, for each incident letter, describe the discovery path from the spec. Check that the first signal reaches the dashboard within 30 s and that the incident clears by itself. Keep those steps in the PR description only, not in this file: the repo is public, and attendees read it.
+For each of `A`, `B`, and `C`, on a stack that has been quiet for a minute:
+1. Open http://localhost:3300 (Lab Overview, last 5 minutes, refresh every 5 s) and run `./incident.sh <letter>`.
+2. Within 30 s, a dashboard panel shows the change.
+3. Follow the discovery path given for that letter in the PR description, from that panel to the evidence in Explore.
+4. The switch ends by itself after 15 s, and `./incident.sh status` prints `none`. New requests succeed at once. The panels use 1m windows, so they take about a minute to settle.
+
+Then check that switching leaves no trace in the logs: in Explore, `{env="lab"} |~ "(?i)incident"` returns no lines.
