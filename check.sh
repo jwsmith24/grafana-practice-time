@@ -58,13 +58,13 @@ pass "Docker is running"
 
 running=$(docker compose ps --status running --services 2>/dev/null)
 missing=""
-for s in $services; do
-  printf '%s\n' "$running" | grep -qx "$s" || missing="$missing $s"
+for service in $services; do
+  printf '%s\n' "$running" | grep -qx "$service" || missing="$missing $service"
 done
 if [ -z "$missing" ]; then
   pass "all 7 containers are running"
 else
-  fail "all 7 containers are running" "Not running:$missing. Run: docker compose up -d"
+  fail "all 7 containers are running" "Not running: ${missing# }. Run: docker compose up -d"
 fi
 
 grafana_id=$(docker compose ps -aq grafana 2>/dev/null)
@@ -106,13 +106,13 @@ fi
 has_lines() {
   query loki /loki/api/v1/query 'sum by (service) (count_over_time({env="lab"}[1m]))' | grep -q "\"service\":\"$1\""
 }
-for s in orders inventory loadgen; do
+for service in orders inventory loadgen; do
   if [ "$loki_ok" -eq 0 ]; then
-    echo "SKIP  Loki has lines from $s (needs Loki)"
-  elif retry has_lines "$s"; then
-    pass "Loki has lines from $s"
+    echo "SKIP  Loki has lines from $service (needs Loki)"
+  elif retry has_lines "$service"; then
+    pass "Loki has lines from $service"
   else
-    fail "Loki has lines from $s" "There are no lines from $s in the last minute. Run: docker compose up -d $s alloy, then check: docker compose logs $s"
+    fail "Loki has lines from $service" "There are no lines from $service in the last minute. Run: docker compose up -d $service alloy, then check: docker compose logs $service"
   fi
 done
 
@@ -120,13 +120,13 @@ done
 scraped() {
   query prometheus /api/v1/query "up{instance=\"$1:8080\"} == 1" | grep -q "\"instance\":\"$1:8080\""
 }
-for s in orders inventory; do
+for service in orders inventory; do
   if [ "$prom_ok" -eq 0 ]; then
-    echo "SKIP  Prometheus scrapes $s (needs Prometheus)"
-  elif retry scraped "$s"; then
-    pass "Prometheus scrapes $s"
+    echo "SKIP  Prometheus scrapes $service (needs Prometheus)"
+  elif retry scraped "$service"; then
+    pass "Prometheus scrapes $service"
   else
-    fail "Prometheus scrapes $s" "Prometheus can't scrape $s. Run: docker compose up -d $s, then check: docker compose logs $s"
+    fail "Prometheus scrapes $service" "Prometheus can't scrape $service. Run: docker compose up -d $service, then check: docker compose logs $service"
   fi
 done
 

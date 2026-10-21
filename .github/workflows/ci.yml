@@ -22,6 +22,8 @@ jobs:
       INCIDENT_DURATION: ${{ github.event_name == 'schedule' && '3m' || '15s' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans the whole history
 
       - uses: actions/setup-go@v5
         with:
@@ -42,6 +44,9 @@ jobs:
           go vet ./...
           go vet -tags integration ./...
           go test ./...
+
+      - name: Secret scan
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.0 detect --source /repo --no-banner --redact
 
       - name: Script checks
         run: |

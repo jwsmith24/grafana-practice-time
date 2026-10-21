@@ -1,0 +1,10 @@
+# Patterns (Go regular expressions) that must not appear in any tracked file
+# outside tests/hygiene. One per line; blank lines and # comments are ignored.
+# Add any internal hostnames or project names that must stay private.
+
+# Internal-looking hostnames
+(?i)\b[a-z0-9-]+(\.[a-z0-9-]+)*\.(corp|internal|intranet|lan)\b
+(?i)\baswf[-_.]?(internal|corp|vpn|intranet)\b
+
+# Private keys
+-----BEGIN [A-Z ]*PRIVATE KEY-----
