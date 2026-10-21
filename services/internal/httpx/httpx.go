@@ -52,10 +52,21 @@ func Annotate(ctx context.Context, args ...any) {
 	}
 }
 
+// Observer receives each logged request's route template, status and
+// duration, e.g. to record metrics.
+type Observer interface {
+	Observe(endpoint string, status int, d time.Duration)
+}
+
 // Log wraps h so each request emits one log line with request_id, endpoint
 // (the matched route pattern), status and duration_ms, plus anything
 // handlers add with Annotate. Paths in skip are not logged.
 func Log(logger *slog.Logger, h http.Handler, skip ...string) http.Handler {
+	return Instrument(logger, nil, h, skip...)
+}
+
+// Instrument is Log that also reports each logged request to obs, if set.
+func Instrument(logger *slog.Logger, obs Observer, h http.Handler, skip ...string) http.Handler {
 	skipped := make(map[string]bool, len(skip))
 	for _, p := range skip {
 		skipped[p] = true
@@ -78,6 +89,10 @@ func Log(logger *slog.Logger, h http.Handler, skip ...string) http.Handler {
 		if endpoint == "" {
 			endpoint = r.Method + " unmatched"
 		}
+		elapsed := time.Since(start)
+		if obs != nil {
+			obs.Observe(endpoint, rec.status, elapsed)
+		}
 		level := slog.LevelInfo
 		if rec.status >= 500 {
 			level = slog.LevelError
@@ -86,7 +101,7 @@ func Log(logger *slog.Logger, h http.Handler, skip ...string) http.Handler {
 			"request_id", id,
 			"endpoint", endpoint,
 			"status", rec.status,
-			"duration_ms", DurationMS(time.Since(start)),
+			"duration_ms", DurationMS(elapsed),
 		}, rl.attrs...)
 		logger.Log(ctx, level, "request", attrs...)
 	})

@@ -12,6 +12,7 @@ import (
 	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logschema"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/requestid"
 )
 
@@ -33,7 +34,7 @@ func serve(t *testing.T, h http.Handler, path string, hdr http.Header) *httptest
 
 // T2.1-1
 func TestHandler(t *testing.T) {
-	h := newHandler(slog.New(slog.DiscardHandler), testToken)
+	h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service))
 
 	rec := serve(t, h, "/inventory/SKU-1042", nil)
 	if rec.Code != 200 {
@@ -63,7 +64,7 @@ func TestHandler(t *testing.T) {
 func TestLogSchema(t *testing.T) {
 	var buf bytes.Buffer
 	logger := logging.NewWithWriter(service, &buf)
-	h := newHandler(logger, testToken)
+	h := newHandler(logger, testToken, metrics.NewHTTP(service))
 	id := requestid.New()
 
 	cases := []struct {
@@ -138,7 +139,7 @@ func TestStartupLine(t *testing.T) {
 
 // T2.2-7 (inventory side)
 func TestTokenRequired(t *testing.T) {
-	h := newHandler(slog.New(slog.DiscardHandler), testToken)
+	h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service))
 	for _, c := range []struct {
 		name, path, token string
 		want              int

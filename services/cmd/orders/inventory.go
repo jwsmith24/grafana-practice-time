@@ -17,8 +17,9 @@ import (
 const DefaultInventoryTimeout = 2 * time.Second
 
 var (
-	errNotFound    = errors.New("item not found")
-	errUpstream5xx = errors.New("inventory server error")
+	errNotFound     = errors.New("item not found")
+	errUpstream5xx  = errors.New("inventory server error")
+	errUnauthorized = errors.New("inventory rejected credentials")
 )
 
 type inventoryClient struct {
@@ -33,7 +34,8 @@ func newInventoryClient(baseURL, token string, timeout time.Duration) *inventory
 }
 
 // stock returns the stock level for itemID. Errors wrap errNotFound,
-// errUpstream5xx or context.DeadlineExceeded where they apply.
+// errUnauthorized, errUpstream5xx or context.DeadlineExceeded where they
+// apply.
 func (c *inventoryClient) stock(ctx context.Context, reqID, itemID string) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -54,6 +56,8 @@ func (c *inventoryClient) stock(ctx context.Context, reqID, itemID string) (int,
 	switch {
 	case resp.StatusCode == http.StatusNotFound:
 		return 0, errNotFound
+	case resp.StatusCode == http.StatusUnauthorized:
+		return 0, errUnauthorized
 	case resp.StatusCode >= 500:
 		return 0, fmt.Errorf("%w: status %d", errUpstream5xx, resp.StatusCode)
 	case resp.StatusCode != http.StatusOK:

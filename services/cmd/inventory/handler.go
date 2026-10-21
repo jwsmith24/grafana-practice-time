@@ -8,6 +8,7 @@ import (
 	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/catalog"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/httpx"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
 )
 
 type stockResponse struct {
@@ -15,13 +16,14 @@ type stockResponse struct {
 	Stock  int    `json:"stock"`
 }
 
-func newHandler(logger *slog.Logger, token string) http.Handler {
+func newHandler(logger *slog.Logger, token string, m *metrics.HTTP) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	mux.Handle("GET /metrics", m.Handler())
 	mux.HandleFunc("GET /inventory/{item_id}", getStock)
-	return httpx.Log(logger, auth.Require(token, mux, "/healthz"), "/healthz")
+	return httpx.Instrument(logger, m, auth.Require(token, mux, "/healthz", "/metrics"), "/healthz", "/metrics")
 }
 
 func getStock(w http.ResponseWriter, r *http.Request) {

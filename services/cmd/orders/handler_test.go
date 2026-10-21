@@ -13,6 +13,7 @@ import (
 	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logschema"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/requestid"
 )
 
@@ -57,6 +58,7 @@ func (f *fakeInventory) lastHeader() http.Header {
 
 type harness struct {
 	h    http.Handler
+	m    *metrics.HTTP
 	inv  *fakeInventory
 	logs *bytes.Buffer
 }
@@ -67,7 +69,8 @@ func newHarness(t *testing.T, inv *fakeInventory, timeout time.Duration) *harnes
 	t.Cleanup(srv.Close)
 	logs := &bytes.Buffer{}
 	logger := logging.NewWithWriter(service, logs)
-	return &harness{h: newHandler(logger, newInventoryClient(srv.URL, testToken, timeout)), inv: inv, logs: logs}
+	m := metrics.NewHTTP(service)
+	return &harness{h: newHandler(logger, newInventoryClient(srv.URL, testToken, timeout), m), m: m, inv: inv, logs: logs}
 }
 
 func (h *harness) do(method, path, body string, hdr map[string]string) *httptest.ResponseRecorder {

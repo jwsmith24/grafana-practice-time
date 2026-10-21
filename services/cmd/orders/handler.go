@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/httpx"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type order struct {
@@ -20,22 +22,38 @@ type order struct {
 }
 
 type server struct {
-	inv *inventoryClient
+	inv            *inventoryClient
+	upstreamErrors *prometheus.CounterVec
 
 	mu     sync.Mutex
 	orders map[string]order
 	next   int
 }
 
-func newHandler(logger *slog.Logger, inv *inventoryClient) http.Handler {
-	s := &server{inv: inv, orders: map[string]order{}}
+// upstreamReasons are the inventory_upstream_errors_total reason values.
+var upstreamReasons = []string{"timeout", "server_error", "unauthorized"}
+
+func newHandler(logger *slog.Logger, inv *inventoryClient, m *metrics.HTTP) http.Handler {
+	s := &server{
+		inv:    inv,
+		orders: map[string]order{},
+		upstreamErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "inventory_upstream_errors_total",
+			Help: "Failed calls from orders to inventory, by reason.",
+		}, []string{"reason"}),
+	}
+	m.Registry.MustRegister(s.upstreamErrors)
+	for _, r := range upstreamReasons {
+		s.upstreamErrors.WithLabelValues(r)
+	}
 	mux := http.NewServeMux()
+	mux.Handle("GET /metrics", m.Handler())
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("POST /orders", s.create)
 	mux.HandleFunc("GET /orders/{id}", s.get)
-	return httpx.Log(logger, mux, "/healthz")
+	return httpx.Instrument(logger, m, mux, "/healthz", "/metrics")
 }
 
 func (s *server) create(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +74,9 @@ func (s *server) create(w http.ResponseWriter, r *http.Request) {
 	stock, err := s.inv.stock(ctx, httpx.RequestID(ctx), req.ItemID)
 	if err != nil {
 		status := upstreamStatus(err)
+		if reason := upstreamReason(err); reason != "" {
+			s.upstreamErrors.WithLabelValues(reason).Inc()
+		}
 		if status >= 500 {
 			httpx.Annotate(ctx, "error", err.Error())
 		}
@@ -98,5 +119,22 @@ func upstreamStatus(err error) int {
 		return http.StatusGatewayTimeout
 	default:
 		return http.StatusBadGateway
+	}
+}
+
+// upstreamReason classifies a failed inventory call for metrics. It returns
+// "" for errors that aren't upstream failures, like an unknown item.
+func upstreamReason(err error) string {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, errUnauthorized):
+		return "unauthorized"
+	case errors.Is(err, errUpstream5xx):
+		return "server_error"
+	case errors.Is(err, errNotFound):
+		return ""
+	default:
+		return "server_error"
 	}
 }

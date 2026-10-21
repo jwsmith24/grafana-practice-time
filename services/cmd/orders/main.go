@@ -10,6 +10,7 @@ import (
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/httpx"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
 )
 
 const service = "orders"
@@ -61,7 +62,7 @@ func main() {
 
 	logStartup(logger, cfg.port)
 	inv := newInventoryClient(cfg.inventoryURL, cfg.token, cfg.inventoryTimeout)
-	srv := &http.Server{Addr: ":" + cfg.port, Handler: newHandler(logger, inv)}
+	srv := &http.Server{Addr: ":" + cfg.port, Handler: newHandler(logger, inv, metrics.NewHTTP(service))}
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("server stopped", "error", err.Error())
 		os.Exit(1)

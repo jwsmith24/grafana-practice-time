@@ -4,6 +4,10 @@ services:
   loki:
     ports:
       - "3100:3100"
+  prometheus:
+    ports:
+      - "9090:9090"
+
   orders:
     ports:
       - "8080:8080"
