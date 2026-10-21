@@ -246,3 +246,16 @@ func TestDeployEvent(t *testing.T) {
 		t.Fatalf("deploy line %v, want version 1.4.2 at INFO", deploys[0])
 	}
 }
+
+// T4.3-2
+func TestInventory500ForItem(t *testing.T) {
+	h := newHarness(t, &fakeInventory{status: 500}, time.Second)
+	rec := h.do("POST", "/orders", `{"item_id":"SKU-1042","quantity":1}`, nil)
+	if rec.Code != 502 {
+		t.Fatalf("status %d, want 502", rec.Code)
+	}
+	l := h.logLine(t)
+	if l["level"] != "ERROR" || l["item_id"] != "SKU-1042" || l["error"] == nil {
+		t.Fatalf("log line %v", l)
+	}
+}

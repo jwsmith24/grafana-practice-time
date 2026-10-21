@@ -79,7 +79,7 @@ func (g *generator) once(ctx context.Context) {
 		req, err = http.NewRequestWithContext(ctx, "GET", g.target+"/orders/"+id, nil)
 	} else {
 		body, _ := json.Marshal(map[string]any{
-			"item_id":  g.items[rand.IntN(len(g.items))],
+			"item_id":  g.pickItem(),
 			"quantity": 1 + rand.IntN(3),
 		})
 		req, err = http.NewRequestWithContext(ctx, "POST", g.target+"/orders", bytes.NewReader(body))
@@ -112,6 +112,19 @@ func (g *generator) once(ctx context.Context) {
 		}
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
+}
+
+// Like a real shop, a few items sell more than the rest: bestsellerShare of
+// orders go to one of bestsellers, and the rest are spread over all items.
+var bestsellers = []string{"SKU-1007", "SKU-1023", "SKU-1042"}
+
+const bestsellerShare = 0.2
+
+func (g *generator) pickItem() string {
+	if rand.Float64() < bestsellerShare {
+		return bestsellers[rand.IntN(len(bestsellers))]
+	}
+	return g.items[rand.IntN(len(g.items))]
 }
 
 const recentMax = 100

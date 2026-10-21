@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"hash/fnv"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
@@ -33,16 +35,33 @@ func lookupDelay(mode string) time.Duration {
 	return 2*time.Second + rand.N(2*time.Second)
 }
 
-func (s store) stock(id string) int {
+func (s store) stock(id string) (int, error) {
+	mode := ""
 	if s.mode != nil {
-		if d := lookupDelay(s.mode()); d > 0 {
-			s.sleep(d)
-		}
+		mode = s.mode()
 	}
-	return stockFor(id)
+	if d := lookupDelay(mode); d > 0 {
+		s.sleep(d)
+	}
+	rec := record(id, mode)
+	n, err := strconv.Atoi(rec)
+	if err != nil {
+		return 0, fmt.Errorf("parse stock record for %s: %w", id, err)
+	}
+	return n, nil
+}
+
+// record returns the stored stock record for id.
+func record(id, mode string) string {
+	n := strconv.Itoa(stockFor(id))
+	if mode == "A" && id == "SKU-1042" {
+		return n + ".0"
+	}
+	return n
 }
 
 func newHandler(logger *slog.Logger, token string, m *metrics.HTTP, st store) http.Handler {
+	m.Init("GET /inventory/{item_id}", http.StatusInternalServerError)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -59,7 +78,14 @@ func (s store) getStock(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "unknown item"})
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, stockResponse{ItemID: id, Stock: s.stock(id)})
+	n, err := s.stock(id)
+	if err != nil {
+		httpx.Annotate(r.Context(), "error", err.Error())
+		httpx.SetLevel(r.Context(), slog.LevelError)
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, stockResponse{ItemID: id, Stock: n})
 }
 
 // stockFor returns a deterministic stock level for id.

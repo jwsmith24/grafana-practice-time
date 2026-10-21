@@ -22,6 +22,7 @@ func TestRequestMetrics(t *testing.T) {
 # TYPE http_requests_total counter
 http_requests_total{endpoint="GET /inventory/{item_id}",service="inventory",status="200"} 1
 http_requests_total{endpoint="GET /inventory/{item_id}",service="inventory",status="404"} 1
+http_requests_total{endpoint="GET /inventory/{item_id}",service="inventory",status="500"} 0
 `
 	if err := testutil.GatherAndCompare(m.Registry, strings.NewReader(want), "http_requests_total"); err != nil {
 		t.Fatal(err)
@@ -41,8 +42,9 @@ func TestEndpointIsRouteTemplate(t *testing.T) {
 	for _, id := range []string{"SKU-1001", "SKU-1002", "SKU-1003"} {
 		serve(t, h, "/inventory/"+id, nil)
 	}
-	if n := testutil.CollectAndCount(m.Registry, "http_requests_total"); n != 1 {
-		t.Fatalf("%d request series for 3 item IDs, want 1", n)
+	// One series for the 200s, plus the 500 series that starts at 0.
+	if n := testutil.CollectAndCount(m.Registry, "http_requests_total"); n != 2 {
+		t.Fatalf("%d request series for 3 item IDs, want 2", n)
 	}
 	if n := testutil.CollectAndCount(m.Registry, "http_request_duration_seconds"); n != 1 {
 		t.Fatalf("%d duration series for 3 item IDs, want 1", n)

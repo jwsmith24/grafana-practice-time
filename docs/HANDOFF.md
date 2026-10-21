@@ -16,14 +16,14 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 5. **Stop and ask the human** about anything under "Decisions pending". Don't decide alone.
 6. **Prove it before you push.** Run the suite against a *fresh* stack (`down -v`, then `up`). Several bugs in this project only showed up on a cold stack.
 
-## Status (2026-10-21, 20:00 UTC)
+## Status (2026-10-21, 21:00 UTC)
 
 | Milestone | State | Where |
 |---|---|---|
 | M1 Log foundation (S1.1 #2, S1.2 #3) | **Merged** | PR #50 |
 | M2 Services (S2.1–S2.4: #7–#10) | **Merged** | PR #50 |
 | M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | **Merged** | PR #50 |
-| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1 and S4.2 done and verified on a cold stack; S4.3/S4.4 wait on decisions 2–4; no PR | branch `claude/practical-brown-l9t5pe` (continues `claude/s4.1-incident-switch`) |
+| M4 Incidents (S4.1–S4.4: #18–#21) | S4.1–S4.3 done and verified on a cold stack; S4.4 next; no PR | branch `claude/practical-brown-l9t5pe` (continues `claude/s4.1-incident-switch`) |
 | M5 Setup tooling (#23–#30) | Not started | |
 | M6 Materials (#32, #33, #35) | Not started | |
 
@@ -41,16 +41,16 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 
 1. ~~Finish S4.1~~: every test layer passed on a cold stack with `INCIDENT_DURATION=15s` (T4.1-6 cleared in 15.7 s; e2e 3/3, none flaky).
 2. ~~S4.2 (#19)~~: done. T4.2-5 judges inventory lines 6–10 s after expiry, because lookups that started just before expiry may still take up to 4 s. CI's integration step now runs with `-timeout 25m`, so the nightly 3m runs fit.
-3. **Before S4.3 and S4.4,** ask the human about decisions 2–4 below.
+3. ~~S4.3 (#20)~~: done. Decisions 2–4 are settled (see below) and recorded on #20 and #21. **S4.4 (#21) is next.**
 4. **Open one M4 PR, based on `main`,** once S4.1–S4.4 are done and verified. Include the M4 verification section.
 5. Then M5. S5.1/S5.2/S5.6 could have started after S2.3 + S3.1, but the rule above is one milestone at a time, then M6.
 
 ## Decisions pending (ask the human; don't decide alone)
 
 1. ~~#5 label convention~~: resolved, see above.
-2. **#21 / S4.4, AC6 conflict:** incident C's `auth token rejected` WARN would outnumber the red herring about 10×. The recommendation is to rate-limit that WARN in inventory.
-3. **#21 / S4.4:** on clear, should orders log a rollback `event="deploy"` with `version="1.4.2"`? Recommended: yes.
-4. **#20 / S4.3:** should loadgen weight its traffic toward `SKU-1042` so incident A shows on the dashboard within 30 s? Loadgen currently picks items uniformly: 50 items at about 5 req/s, so `SKU-1042` gets roughly 0.1 req/s.
+2. ~~#21 AC6 conflict~~: **decided** — inventory rate-limits the `auth token rejected` WARN (option (a) on the issue).
+3. ~~#21 on clear~~: **decided** — orders logs a rollback `event="deploy"` with `version="1.4.2"`.
+4. ~~#20 loadgen weighting~~: **decided** — weight toward `SKU-1042`. Done in S4.3: three "bestsellers" (`SKU-1007`, `SKU-1023`, `SKU-1042`) share 20% of orders, so each gets ~8%. The weighting is always on, so it gives nothing away.
 5. **Truncated spec text** (incident A's discovery path, the cheat-sheet contents): confirm with the human before writing materials (M6).
 
 ## What exists (map of the code)
@@ -77,6 +77,8 @@ services/                 one Go module (client_golang is the only dependency)
 incident.sh               (S4.1 branch) bash 3.2; passes only the argument to `docker compose exec -T orders /labctl`
 tests/static              Go: compose config, image is static + has no shell, prometheus.yml, dashboard JSON
 tests/integration         Go, build tag `integration`; reaches Loki/Prometheus via Grafana's datasource proxy
+                          incident_test.go: T4.1 + shared helpers (incidentSh, waitQuiet, orders5xx, postOrder)
+                          mode_a_test.go, mode_b_test.go: one TestMode<letter> per incident; add mode_c_test.go
 tests/e2e                 Playwright 1.56.1 (data links, deploy annotation)
 tests/scripts             bats tests for incident.sh with a stubbed docker (S4.1 branch)
 .github/workflows/ci.yml  unit → static → (bats, shellcheck) → compose up --build --wait → integration → e2e
@@ -119,13 +121,15 @@ tests/scripts             bats tests for incident.sh with a stubbed docker (S4.1
   ```
   - **Regenerate `Dockerfile.local` whenever `services/Dockerfile` changes.** A stale copy cost a debugging round once.
   - `go test -skip ServiceImages ./...` in `tests/` skips the one static test that builds images. CI builds normally.
-- **Docker Hub sometimes returns 429.** Retry after a short wait.
+- **Docker Hub sometimes returns 429**, and it can last a long time. BuildKit checks the registry for `golang:…-alpine` even when it's cached. To build offline from the cache, pin the digest in your scratch `Dockerfile.local`: get it with `docker buildx du --verbose | grep golang`, then write `FROM … golang:1.24.9-alpine@sha256:<digest> AS build`.
 - **Playwright:**
   - Chromium is preinstalled (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`); don't run `playwright install` locally. CI does run it.
   - The config pins `locale: 'en-US'`, because the sandbox's `en-US@posix` locale stops Grafana's frontend from booting.
   - Data links only appear for the series under the cursor, so `followDataLink` clicks on the line itself. It finds the line by scanning the panel canvas.
 - **bats and shellcheck** aren't preinstalled: `apt-get install -y bats shellcheck`.
 - **New Prometheus series.** On a fresh stack, the first 5xx creates a new `http_requests_total{status="502"}` series, and `rate()` reads 0 until the counter rises between two scrapes. Any test that forces errors must keep them coming across at least 2 scrapes (more than 10 s).
+- **Every incident test calls `waitQuiet` first.** All three letters are real faults now (T4.1-6 switches on A), so wait until orders' 5xx rate is back to 0 before triggering. Otherwise a "5xx > 0 within 30 s" check can pass on leftovers.
+- **Zeroed 5xx series.** Orders initialises `http_requests_total` for `POST /orders` 502/504, and inventory for 500, at 0 (`metrics.HTTP.Init`). Without that, a short burst of errors between two scrapes creates a new series that `rate()` never sees. Incident A's signal failed half the time on a cold stack before this.
 - **Test order matters.** Go runs test files in name order. `baseline_test.go` (no ERROR lines in the last 2 min) runs before tests that deliberately create errors. Incident tests will create a lot of errors, so keep baseline assertions first, or scope them by time.
 - **Docker isn't running at session start, and the daemon can die mid-session.** Start it with `dockerd > <scratchpad>/dockerd.log 2>&1 &`, then wait for `docker info`. If you get `ERR_CONNECTION_REFUSED` or "Cannot connect to the Docker daemon" partway through, restart it and run `compose up -d --wait` again.
 - **The CI log can be hard to read.** On failure, CI dumps compose logs (capped at 200 lines per service), and the failing step's output sits above that dump. Downloading the raw log from the blob URL is blocked by the sandbox proxy (403). Use the GitHub `get_job_logs` tool with a `tail_lines` large enough to reach the step.

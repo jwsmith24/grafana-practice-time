@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/catalog"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logschema"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
@@ -225,4 +226,45 @@ func TestSlowLookups(t *testing.T) {
 			t.Fatalf("status %d", rec.Code)
 		}
 	})
+}
+
+// T4.3-1
+func TestUnparsableRecord(t *testing.T) {
+	var buf bytes.Buffer
+	st := store{mode: func() string { return "A" }, sleep: func(time.Duration) {}}
+	h := newHandler(logging.NewWithWriter(service, &buf), testToken, metrics.NewHTTP(service), st)
+
+	rec := serve(t, h, "/inventory/SKU-1042", nil)
+	if rec.Code != 500 {
+		t.Fatalf("SKU-1042: status %d, want 500", rec.Code)
+	}
+	if err := logschema.Validate(bytes.TrimSpace(buf.Bytes()), logschema.Request); err != nil {
+		t.Fatalf("%v\nline: %s", err, buf.String())
+	}
+	var l struct {
+		Level  string `json:"level"`
+		Status int    `json:"status"`
+		ItemID string `json:"item_id"`
+		Error  string `json:"error"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &l); err != nil {
+		t.Fatal(err)
+	}
+	if l.Level != "ERROR" || l.Status != 500 || l.ItemID != "SKU-1042" || !strings.Contains(l.Error, "parse") {
+		t.Fatalf("got %+v", l)
+	}
+
+	for _, id := range catalog.Items() {
+		if id == "SKU-1042" {
+			continue
+		}
+		if rec := serve(t, h, "/inventory/"+id, nil); rec.Code != 200 {
+			t.Fatalf("%s: status %d, want 200", id, rec.Code)
+		}
+	}
+
+	plain := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service), store{})
+	if rec := serve(t, plain, "/inventory/SKU-1042", nil); rec.Code != 200 {
+		t.Fatalf("SKU-1042 outside A: status %d, want 200", rec.Code)
+	}
 }
