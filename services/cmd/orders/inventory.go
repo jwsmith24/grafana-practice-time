@@ -24,13 +24,13 @@ var (
 
 type inventoryClient struct {
 	baseURL string
-	token   string
+	token   func() string
 	timeout time.Duration
 	http    *http.Client
 }
 
 func newInventoryClient(baseURL, token string, timeout time.Duration) *inventoryClient {
-	return &inventoryClient{baseURL: baseURL, token: token, timeout: timeout, http: &http.Client{}}
+	return &inventoryClient{baseURL: baseURL, token: func() string { return token }, timeout: timeout, http: &http.Client{}}
 }
 
 // stock returns the stock level for itemID. Errors wrap errNotFound,
@@ -44,7 +44,7 @@ func (c *inventoryClient) stock(ctx context.Context, reqID, itemID string) (int,
 		return 0, err
 	}
 	req.Header.Set(requestid.Header, reqID)
-	req.Header.Set(auth.Header, c.token)
+	req.Header.Set(auth.Header, c.token())
 	resp, err := c.http.Do(req)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {

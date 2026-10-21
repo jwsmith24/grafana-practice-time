@@ -46,6 +46,15 @@ func (m *HTTP) Observe(endpoint string, status int, d time.Duration) {
 	m.duration.WithLabelValues(m.service, endpoint).Observe(d.Seconds())
 }
 
+// Init creates the request series for endpoint and each status at 0, so the
+// first such request raises a counter Prometheus already has, and rate()
+// shows it on the next scrape.
+func (m *HTTP) Init(endpoint string, statuses ...int) {
+	for _, st := range statuses {
+		m.requests.WithLabelValues(m.service, endpoint, strconv.Itoa(st))
+	}
+}
+
 // Handler serves the registry in the Prometheus exposition format.
 func (m *HTTP) Handler() http.Handler {
 	return promhttp.HandlerFor(m.Registry, promhttp.HandlerOpts{})

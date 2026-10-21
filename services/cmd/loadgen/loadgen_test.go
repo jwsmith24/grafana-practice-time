@@ -115,3 +115,24 @@ func TestSummaryLine(t *testing.T) {
 		}
 	}
 }
+
+func TestPickItem(t *testing.T) {
+	g := newGenerator("http://unused", 1, nil)
+	const n = 50000
+	counts := map[string]int{}
+	for i := 0; i < n; i++ {
+		counts[g.pickItem()]++
+	}
+	if len(counts) != len(g.items) {
+		t.Fatalf("picked %d distinct items, want all %d", len(counts), len(g.items))
+	}
+	// Each bestseller: 0.2/3 + 0.8/50 ≈ 8.3% of orders; the rest 1.6%.
+	for _, id := range bestsellers {
+		if share := float64(counts[id]) / n; share < 0.07 || share > 0.10 {
+			t.Errorf("%s share %.3f, want about 0.083", id, share)
+		}
+	}
+	if share := float64(counts["SKU-1001"]) / n; share < 0.01 || share > 0.025 {
+		t.Errorf("SKU-1001 share %.3f, want about 0.016", share)
+	}
+}

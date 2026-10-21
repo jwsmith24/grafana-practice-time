@@ -55,6 +55,12 @@ export async function openOverview(page: Page, from: number, to: number) {
  * panel canvas for the series' (saturated) stroke colour.
  */
 export async function followDataLink(page: Page, panelTitle: string, legendLabel: string, linkName: RegExp) {
+  // Deploy annotations draw saturated vertical lines across every panel,
+  // which linePeak would mistake for the series, so switch them off first.
+  const deploys = page.getByLabel('Deploys');
+  if (await deploys.isChecked()) await deploys.click({ force: true });
+  await expect(page.getByTestId('data-testid annotation-marker')).toHaveCount(0);
+
   const panel = page.locator('[data-viz-panel-key]').filter({ has: page.getByText(panelTitle, { exact: true }) });
   await expect(panel).toHaveCount(1);
   await panel.getByText(legendLabel, { exact: true }).first().click();

@@ -46,6 +46,7 @@ func newHandler(logger *slog.Logger, inv *inventoryClient, m *metrics.HTTP) http
 	for _, r := range upstreamReasons {
 		s.upstreamErrors.WithLabelValues(r)
 	}
+	m.Init("POST /orders", http.StatusBadGateway, http.StatusGatewayTimeout)
 	mux := http.NewServeMux()
 	mux.Handle("GET /metrics", m.Handler())
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

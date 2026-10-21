@@ -83,10 +83,16 @@ type lokiStream struct {
 func lokiQuery(t *testing.T, query string, window time.Duration) []lokiStream {
 	t.Helper()
 	now := time.Now()
+	return lokiQueryRange(t, query, now.Add(-window), now)
+}
+
+// lokiQueryRange runs a LogQL range query over [start, end].
+func lokiQueryRange(t *testing.T, query string, start, end time.Time) []lokiStream {
+	t.Helper()
 	v := url.Values{
 		"query":     {query},
-		"start":     {strconv.FormatInt(now.Add(-window).UnixNano(), 10)},
-		"end":       {strconv.FormatInt(now.UnixNano(), 10)},
+		"start":     {strconv.FormatInt(start.UnixNano(), 10)},
+		"end":       {strconv.FormatInt(end.UnixNano(), 10)},
 		"limit":     {"5000"},
 		"direction": {"backward"},
 	}

@@ -21,6 +21,8 @@ func TestRequestMetrics(t *testing.T) {
 # TYPE http_requests_total counter
 http_requests_total{endpoint="GET /orders/{id}",service="orders",status="404"} 1
 http_requests_total{endpoint="POST /orders",service="orders",status="201"} 1
+http_requests_total{endpoint="POST /orders",service="orders",status="502"} 0
+http_requests_total{endpoint="POST /orders",service="orders",status="504"} 0
 `
 	if err := testutil.GatherAndCompare(h.m.Registry, strings.NewReader(want), "http_requests_total"); err != nil {
 		t.Fatal(err)

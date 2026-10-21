@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jwsmith24/grafana-practice-time/services/internal/auth"
+	"github.com/jwsmith24/grafana-practice-time/services/internal/catalog"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logging"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/logschema"
 	"github.com/jwsmith24/grafana-practice-time/services/internal/metrics"
@@ -34,7 +36,7 @@ func serve(t *testing.T, h http.Handler, path string, hdr http.Header) *httptest
 
 // T2.1-1
 func TestHandler(t *testing.T) {
-	h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service))
+	h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service), store{})
 
 	rec := serve(t, h, "/inventory/SKU-1042", nil)
 	if rec.Code != 200 {
@@ -64,7 +66,7 @@ func TestHandler(t *testing.T) {
 func TestLogSchema(t *testing.T) {
 	var buf bytes.Buffer
 	logger := logging.NewWithWriter(service, &buf)
-	h := newHandler(logger, testToken, metrics.NewHTTP(service))
+	h := newHandler(logger, testToken, metrics.NewHTTP(service), store{})
 	id := requestid.New()
 
 	cases := []struct {
@@ -139,7 +141,7 @@ func TestStartupLine(t *testing.T) {
 
 // T2.2-7 (inventory side)
 func TestTokenRequired(t *testing.T) {
-	h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service))
+	h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service), store{})
 	for _, c := range []struct {
 		name, path, token string
 		want              int
@@ -163,5 +165,106 @@ func TestTokenRequired(t *testing.T) {
 	}
 	if auth.Valid("", "") {
 		t.Fatal("an empty expected token must reject everything")
+	}
+}
+
+// T4.2-1
+func TestSlowLookups(t *testing.T) {
+	t.Run("delay bounds", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			if d := lookupDelay("B"); d < 2*time.Second || d >= 4*time.Second {
+				t.Fatalf("delay %s outside [2s, 4s)", d)
+			}
+		}
+		for _, mode := range []string{"", "A", "C"} {
+			if d := lookupDelay(mode); d != 0 {
+				t.Fatalf("mode %q: delay %s, want 0", mode, d)
+			}
+		}
+	})
+
+	t.Run("slow but successful", func(t *testing.T) {
+		var buf bytes.Buffer
+		var slept []time.Duration
+		st := store{
+			mode:  func() string { return "B" },
+			sleep: func(d time.Duration) { slept = append(slept, d); time.Sleep(d) },
+		}
+		h := newHandler(logging.NewWithWriter(service, &buf), testToken, metrics.NewHTTP(service), st)
+		id := requestid.New()
+		rec := serve(t, h, "/inventory/SKU-1001", http.Header{requestid.Header: {id}})
+		if rec.Code != 200 {
+			t.Fatalf("status %d, want 200", rec.Code)
+		}
+		if len(slept) != 1 || slept[0] < 2*time.Second || slept[0] >= 4*time.Second {
+			t.Fatalf("slept %v, want one delay in [2s, 4s)", slept)
+		}
+		if err := logschema.Validate(bytes.TrimSpace(buf.Bytes()), logschema.Request); err != nil {
+			t.Fatalf("%v\nline: %s", err, buf.String())
+		}
+		var l struct {
+			Level      string  `json:"level"`
+			Status     int     `json:"status"`
+			RequestID  string  `json:"request_id"`
+			DurationMS float64 `json:"duration_ms"`
+		}
+		if err := json.Unmarshal(buf.Bytes(), &l); err != nil {
+			t.Fatal(err)
+		}
+		if l.Level != "INFO" || l.Status != 200 || l.RequestID != id || l.DurationMS <= 2000 {
+			t.Fatalf("got %+v", l)
+		}
+	})
+
+	t.Run("no delay outside B", func(t *testing.T) {
+		st := store{
+			mode:  func() string { return "" },
+			sleep: func(d time.Duration) { t.Fatalf("slept %s", d) },
+		}
+		h := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service), st)
+		if rec := serve(t, h, "/inventory/SKU-1001", nil); rec.Code != 200 {
+			t.Fatalf("status %d", rec.Code)
+		}
+	})
+}
+
+// T4.3-1
+func TestUnparsableRecord(t *testing.T) {
+	var buf bytes.Buffer
+	st := store{mode: func() string { return "A" }, sleep: func(time.Duration) {}}
+	h := newHandler(logging.NewWithWriter(service, &buf), testToken, metrics.NewHTTP(service), st)
+
+	rec := serve(t, h, "/inventory/SKU-1042", nil)
+	if rec.Code != 500 {
+		t.Fatalf("SKU-1042: status %d, want 500", rec.Code)
+	}
+	if err := logschema.Validate(bytes.TrimSpace(buf.Bytes()), logschema.Request); err != nil {
+		t.Fatalf("%v\nline: %s", err, buf.String())
+	}
+	var l struct {
+		Level  string `json:"level"`
+		Status int    `json:"status"`
+		ItemID string `json:"item_id"`
+		Error  string `json:"error"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &l); err != nil {
+		t.Fatal(err)
+	}
+	if l.Level != "ERROR" || l.Status != 500 || l.ItemID != "SKU-1042" || !strings.Contains(l.Error, "parse") {
+		t.Fatalf("got %+v", l)
+	}
+
+	for _, id := range catalog.Items() {
+		if id == "SKU-1042" {
+			continue
+		}
+		if rec := serve(t, h, "/inventory/"+id, nil); rec.Code != 200 {
+			t.Fatalf("%s: status %d, want 200", id, rec.Code)
+		}
+	}
+
+	plain := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service), store{})
+	if rec := serve(t, plain, "/inventory/SKU-1042", nil); rec.Code != 200 {
+		t.Fatalf("SKU-1042 outside A: status %d, want 200", rec.Code)
 	}
 }
