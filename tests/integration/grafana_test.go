@@ -3,71 +3,11 @@
 package integration
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"net/http"
-	"os"
 	"regexp"
 	"testing"
-	"time"
 )
 
-var client = &http.Client{Timeout: 10 * time.Second}
-
 var orgRoleRe = regexp.MustCompile(`"isSignedIn":false,[^}]*"orgRole":"([A-Za-z]+)"`)
-
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
-func grafanaURL() string {
-	return envOr("GRAFANA_URL", "http://localhost:"+envOr("GRAFANA_PORT", "3300"))
-}
-
-// do issues a request to Grafana and returns the status code and body.
-// With admin set, it uses the admin basic-auth credentials; otherwise it is anonymous.
-func do(t *testing.T, method, path string, body any, admin bool) (int, []byte) {
-	t.Helper()
-	var r io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r = bytes.NewReader(b)
-	}
-	req, err := http.NewRequest(method, grafanaURL()+path, r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if admin {
-		req.SetBasicAuth(envOr("GRAFANA_ADMIN_USER", "admin"), envOr("GRAFANA_ADMIN_PASSWORD", "admin"))
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("%s %s: %v", method, path, err)
-	}
-	defer resp.Body.Close()
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return resp.StatusCode, b
-}
-
-func decode(t *testing.T, b []byte, v any) {
-	t.Helper()
-	if err := json.Unmarshal(b, v); err != nil {
-		t.Fatalf("decode %q: %v", b, err)
-	}
-}
 
 // T1.1-1
 func TestGrafanaHealth(t *testing.T) {

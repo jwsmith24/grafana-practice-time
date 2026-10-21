@@ -1,0 +1,49 @@
+local.file_match "lab" {
+  path_targets = [{"__path__" = "/var/log/lab/*.log"}]
+  sync_period  = "5s"
+}
+
+loki.source.file "lab" {
+  targets    = local.file_match.lab.targets
+  forward_to = [loki.process.lab.receiver]
+}
+
+loki.process "lab" {
+  stage.json {
+    expressions = {
+      time    = "",
+      service = "",
+      level   = "",
+    }
+  }
+
+  stage.timestamp {
+    source = "time"
+    format = "RFC3339Nano"
+  }
+
+  stage.labels {
+    values = {
+      service = "",
+      level   = "",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      env = "lab",
+    }
+  }
+
+  stage.label_drop {
+    values = ["filename"]
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

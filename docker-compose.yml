@@ -15,6 +15,49 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  alloy:
+    image: grafana/alloy:v1.11.3
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - lab-logs:/var/log/lab:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/12345 && printf 'GET /-/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  dummy:
+    image: busybox:1.37.0
+    command:
+      - sh
+      - -c
+      - |
+        f=/var/log/lab/dummy.log
+        : > "$$f"
+        ts() { date -u -d "@$$1" +%Y-%m-%dT%H:%M:%S.000Z; }
+        echo "{\"time\":\"$$(ts $$(($$(date +%s) - 90)))\",\"level\":\"info\",\"service\":\"dummy\",\"msg\":\"marker\",\"request_id\":\"$$(cat /proc/sys/kernel/random/uuid)\"}" >> "$$f"
+        i=0
+        while true; do
+          case $$((i % 4)) in 2) lvl=warn ;; 3) lvl=error ;; *) lvl=info ;; esac
+          echo "{\"time\":\"$$(ts $$(date +%s))\",\"level\":\"$$lvl\",\"service\":\"dummy\",\"msg\":\"tick\",\"request_id\":\"$$(cat /proc/sys/kernel/random/uuid)\",\"seq\":$$i}" >> "$$f"
+          i=$$((i + 1))
+          sleep 1
+        done
+    volumes:
+      - lab-logs:/var/log/lab
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:12.2.1
     ports:
@@ -46,4 +89,5 @@ services:
 volumes:
   lab-logs:
   loki-data:
+  alloy-data:
   grafana-data:
