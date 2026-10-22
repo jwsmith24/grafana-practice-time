@@ -1,6 +1,6 @@
 # Handoff: Grafana Troubleshooting Lab
 
-You're continuing a nearly built project. M1–M6 are merged, and S6.5 (the gated worksheet, #54) was added on 2026-10-22 before the dry run. What's left is M7, after the human's dry run.
+You're continuing a nearly built project. M1–M6 are merged, including S6.5 (the gated worksheet, #54, PR #55), which was added on 2026-10-22 before the dry run. What's left is M7, after the human's dry run.
 
 Read this file, then `docs/PLAN.md` for the issue index, the test conventions, and the spec risks, then `docs/VERIFY.md` for how to verify each milestone. The GitHub issues in `jwsmith24/grafana-practice-time` carry the scope and the named tests for every slice. Each slice issue has an **Acceptance criteria → tests** table, and those tests are the definition of done. The spec itself is not in the repo; ask the human if you need it.
 
@@ -26,7 +26,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 | M4 Incidents (S4.1–S4.4: #18–#21) | **Merged** | PR #51 |
 | M5 Setup tooling (S5.1–S5.6: #23–#28) | **Merged** | PR #52 |
 | M6 Materials (S6.1 #32, S6.2 #33, S6.4 #35) | **Merged** | PR #53 |
-| S6.5 Gated worksheet (#54) | Done and verified on a fresh stack; PR open, waiting on the human's approval of the question wording | branch `claude/compassionate-mccarthy-mefl52` |
+| S6.5 Gated worksheet (#54) | **Merged** | PR #55 |
 | M7 Dry run (#37 manual, #38) | Not started | |
 
 - **Playwright retries once in CI.** A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
@@ -37,8 +37,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 
 ## Next steps
 
-1. **Get the S6.5 PR green, approved (the human approves the question wording) and merged** before the dry run.
-2. **M7:** #38 fixes what the human's dry run (#37) finds. It still waits on the dry-run findings; don't start #38 before them.
+1. **M7:** #38 fixes what the human's dry run (#37) finds. It still waits on the dry-run findings; don't start #38 before them.
    - If a finding changes the dashboard or Grafana, regenerate the demo screenshots (see "Materials" below) and ask the human to redo MT6.4-2.
    - If a finding changes a log line, a field, or a cheat-sheet query, T6.1-4 and T6.4-3 will tell you whether the materials still work.
 
