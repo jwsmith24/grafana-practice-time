@@ -70,3 +70,30 @@ func TestNoInternalDetails(t *testing.T) {
 		}
 	}
 }
+
+// causeWords are the words T4.1-5 keeps out of incident.sh's output, plus
+// the evidence each mode leaves in the logs.
+var causeWords = []string{"sku", "1042", "latency", "slow", "token", "auth", "credential", "rejected", "deploy", "1.4.3", "deadline", "timeout"}
+
+// T6.2-2, and the same check for the cheat sheet. The demo script walks
+// through mode B in the open, so it is only kept clear of the other modes'
+// evidence.
+func TestMaterialsRevealNothing(t *testing.T) {
+	files := map[string][]string{
+		"materials/logql-cheat-sheet.md": causeWords,
+		"materials/worksheet.md":         causeWords,
+		"materials/demo-script.md":       {"sku", "1042", "token", "auth", "credential", "rejected", "deploy", "1.4.3"},
+	}
+	for f, words := range files {
+		b, err := os.ReadFile(filepath.Join(root, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := strings.ToLower(string(b))
+		for _, w := range words {
+			if i := strings.Index(text, w); i >= 0 {
+				t.Errorf("%s:%d mentions %q", f, 1+strings.Count(text[:i], "\n"), w)
+			}
+		}
+	}
+}
