@@ -64,7 +64,8 @@ services/                 one Go module (client_golang is the only dependency)
   cmd/loadgen             ~5 req/s to orders; summary line every 10s
   cmd/labctl              set/clear/status of the lab mode; `unlock N <answer>` for the gated worksheet
                           questions.go: questions 2–6 and the closing message, answers as SHA-256 hashes only
-                          unlock.go: matching (lowercase, trim, collapse spaces, strip quotes/backticks); 0 right, 1 wrong, 2 usage
+                          unlock.go: matching (lowercase, trim, collapse spaces, strip quotes/backticks); 0 right, 1 wrong, 2 usage;
+                          a right answer starts the next question's mode (3–5 → A, B, C) or clears the lab
   internal/logging        slog JSON → stdout + /var/log/lab/<svc>.log (truncated on start); time = RFC 3339 ms UTC; levels INFO/WARN/ERROR
   internal/httpx          request log line + metrics observer; Annotate / SetLevel; -healthcheck flag
   internal/metrics        http_requests_total, http_request_duration_seconds
@@ -73,7 +74,8 @@ services/                 one Go module (client_golang is the only dependency)
   internal/{auth,catalog,requestid}
   Dockerfile              one cross-compiling build stage; scratch target per service
 incident.sh               bash 3.2; passes only the argument to `docker compose exec -T orders /labctl`
-unlock.sh                 bash 3.2; passes only `unlock N <answer words…>` (joined by spaces) to the same labctl
+unlock.sh                 bash 3.2; passes only `unlock N <answer words…>` (joined by spaces) to the same labctl;
+                          during the worksheet it replaces incident.sh (which stays for the demo and the facilitator)
 tests/static              Go: compose config, image is static + has no shell, prometheus.yml, dashboard JSON
 tests/integration         Go, build tag `integration`; reaches Loki/Prometheus via Grafana's datasource proxy
                           incident_test.go: T4.1 + shared helpers (incidentSh, waitQuiet, orders5xx, postOrder)
@@ -81,7 +83,7 @@ tests/integration         Go, build tag `integration`; reaches Loki/Prometheus v
                           materials_baseline_test.go (T6.2-3), materials_demo_test.go (T6.4-3), materials_test.go (T6.1-3, T6.1-4 chains)
                           materials_unlock_test.go (T6.5-4): whole gated chain via ./unlock.sh, answers taken from the lab
                           session_test.go: sorts last; T4.4-7 red herring over the whole run
-materials/                logql-cheat-sheet.md (10 templates, <placeholder> names), worksheet.md (intro + question 1; 2–6 come from ./unlock.sh), demo-script.md (mode B, 7 steps)
+materials/                logql-cheat-sheet.md (10 templates, <placeholder> names), worksheet.md (intro, tips, question 1; 2–6 come from ./unlock.sh), demo-script.md (mode B, 7 steps)
                           demo/step-N.png: the demo's screenshot fallbacks, made by tests/e2e/capture
 tests/e2e                 Playwright 1.56.1 (data links, deploy annotation)
                           capture/ + capture.config.ts: regenerates materials/demo/*.png; not part of the suite
@@ -157,8 +159,8 @@ check.sh                  bash 3.2 + curl + docker; PASS/FAIL per check with a f
 - **Short mode tests must wait for their own errors to stop.** The M6 chains clear a mode seconds after starting it, often before Prometheus has scraped any 5xx, so the next test's `waitQuiet` reads 0 while 504s and 502s are still in flight. Those then land in the next mode's window (it broke T4.3-4 once). `triggerMode`'s cleanup waits until orders has logged no ERROR line for 10 s. Use `triggerMode` for any new test that switches a mode on.
 - **T6.1-4 for C starts from the dashboard's Deploys annotation.** The chain reads the field and value to filter on from the annotation's expression, the way an attendee reads the marker.
 - **Regenerating the screenshots:** start a fresh stack (`down -v`, `up`), wait about two minutes so the graphs have a healthy stretch, then run `(cd tests/e2e && npx playwright test -c capture.config.ts)`. A fresh stack matters: on a used one, earlier modes' deploy markers and WARN lines show up in the pictures. The spec keeps mode B running by re-running `./incident.sh B` every 10 s, so `INCIDENT_DURATION` doesn't matter. Look at every image before you commit.
-- **The gated worksheet (S6.5).** Questions 2–6 live in `services/cmd/labctl/questions.go`; editing them means rebuilding the orders image. The answers are stored only as `sha256("lab-q<N>:" + normalize(answer))`, and the plain answers are on the facilitator's answer key, never in the repo, an issue or a PR. T6.5-4 writes down only question 1's field and question 4's service, and takes the other answers from the lab. Any change to a mode's evidence that changes an answer needs a new hash and an answer-key update.
-- **Cause words.** `tests/hygiene` keeps every mode's evidence (`sku`, `token`, `deploy`, `1.4.3`, `deadline`, `timeout`, …) out of the cheat sheet, the worksheet, `labctl`'s questions and unlock messages, and `unlock.sh`, and A's and C's out of the demo script. The words aren't matched in the PNGs, so check them by eye.
+- **The gated worksheet (S6.5).** Questions 2–6 live in `services/cmd/labctl/questions.go`; editing them means rebuilding the orders image. After the human's own run (2026-10-22) the questions were rewritten as step-by-step instructions that point at cheat-sheet query numbers and dashboard panels, the notes template was dropped, and unlocking starts and clears the modes itself, so pairs never run `incident.sh`. The human chose this over the original "don't narrow the discovery path" rule. The answers are stored only as `sha256("lab-q<N>:" + normalize(answer))`, and the plain answers are on the facilitator's answer key, never in the repo, an issue or a PR. T6.5-4 writes down only question 1's field and question 4's service, and takes the other answers from the lab. Any change to a mode's evidence that changes an answer needs a new hash and an answer-key update.
+- **Cause words.** `tests/hygiene` keeps every mode's evidence (`sku`, `token`, `deploy`, `1.4.3`, `deadline`, `timeout`, …) out of the cheat sheet, the worksheet, `labctl`'s unlock messages and `unlock.sh`, the answers out of `labctl`'s questions (which may name the latency panel and the Deploys toggle), and A's and C's out of the demo script. The words aren't matched in the PNGs, so check them by eye.
 
 ## Public repo: don't leak the answers
 

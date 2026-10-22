@@ -181,6 +181,12 @@ func TestCheatSheetQueriesRun(t *testing.T) {
 // ERROR line for 10s instead.
 func triggerMode(t *testing.T, letter string) time.Time {
 	t.Helper()
+	return triggerWith(t, letter, func() { incidentSh(t, letter) })
+}
+
+// triggerWith is triggerMode with start doing the switch to mode letter.
+func triggerWith(t *testing.T, letter string, start func()) time.Time {
+	t.Helper()
 	incidentSh(t, "clear")
 	t.Cleanup(func() {
 		incidentSh(t, "clear")
@@ -191,9 +197,9 @@ func triggerMode(t *testing.T, letter string) time.Time {
 		}
 	})
 	waitQuiet(t)
-	start := time.Now()
-	incidentSh(t, letter)
-	return start
+	begin := time.Now()
+	start()
+	return begin
 }
 
 // erroringServices runs the cheat sheet's rate() query for ERROR lines until
@@ -231,15 +237,15 @@ func contains(list []string, s string) bool {
 // queries only, each filled in from the results before it. The queries cover
 // the time since the switch, so they still work after a short mode clears.
 func TestCheatSheetFindsA(t *testing.T) {
-	if item := chainA(t); item != "SKU-1042" {
+	if item := chainA(t, triggerMode(t, "A")); item != "SKU-1042" {
 		t.Fatalf("mode A chain found item_id %s, want SKU-1042", item)
 	}
 }
 
-// chainA runs mode A's chain and returns the one item_id the errors share.
-func chainA(t *testing.T) string {
+// chainA runs mode A's chain on the mode started at start, and returns the
+// one item_id the errors share.
+func chainA(t *testing.T, start time.Time) string {
 	t.Helper()
-	start := triggerMode(t, "A")
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
 	if s := erroringServices(t); !contains(s, "orders") {
@@ -293,16 +299,15 @@ func TestCheatSheetFindsB(t *testing.T) {
 }
 
 func TestCheatSheetFindsC(t *testing.T) {
-	if v := chainC(t); v != "1.4.3" {
+	if v := chainC(t, triggerMode(t, "C")); v != "1.4.3" {
 		t.Fatalf("mode C chain found version %s, want 1.4.3", v)
 	}
 }
 
-// chainC runs mode C's chain and returns the version of the first deploy
-// line since the switch.
-func chainC(t *testing.T) string {
+// chainC runs mode C's chain on the mode started at start, and returns the
+// version of the first deploy line since then.
+func chainC(t *testing.T, start time.Time) string {
 	t.Helper()
-	start := triggerMode(t, "C")
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
 	if s := erroringServices(t); !contains(s, "orders") {

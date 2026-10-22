@@ -154,10 +154,10 @@ The exit tests are T6.1-4 and T6.4-3. S6.3, the answer key, is kept outside this
 ## S6.5 Gated worksheet: each answer unlocks the next question
 
 **Automated:** T6.5-1 to T6.5-6, and T6.2-1 as updated.
-- **Unit:** `services/cmd/labctl/unlock_test.go`. T6.5-1 runs `labctl unlock` against a made-up question table: lenient matching, the neutral wrong-answer line and exit 1, usage and exit 2, the closing message. `TestLabWorksheet` checks the real table: questions 1 to 6 in order, each mode question runs only its own letter, and every stored answer is a 64-hex SHA-256 digest.
-- **Static:** `tests/static/worksheet_test.go` (T6.2-1, T6.5-3: the worksheet holds only question 1, the intro, the notes template, how to unlock and the escape hatch), `readme_test.go` (T6.5-6), and `tests/hygiene` (T6.5-5: the worksheet's cause-word list also covers `services/cmd/labctl/questions.go`, `unlock.go` and `unlock.sh`).
+- **Unit:** `services/cmd/labctl/unlock_test.go`. T6.5-1 runs `labctl unlock` against a made-up question table and a fake mode switch: lenient matching, the neutral wrong-answer line and exit 1, usage and exit 2, the closing message, and the mode changes (a right answer starts the next question's mode or clears the lab; a wrong one or bad input changes nothing). `TestLabWorksheet` checks the real table: questions 1 to 6 in order, questions 3 to 5 start modes A, B and C, none tells the pair to run `incident.sh`, and every stored answer is a 64-hex SHA-256 digest.
+- **Static:** `tests/static/worksheet_test.go` (T6.2-1, T6.5-3: the worksheet holds only question 1, the intro, the tips, how to unlock and the escape hatch, and never runs `incident.sh`), `readme_test.go` (T6.5-6), and `tests/hygiene` (T6.5-5: the worksheet's cause-word list also covers `unlock.go` and `unlock.sh`; `questions.go` gets the same list less the dashboard names its steps point at).
 - **Scripts:** `tests/scripts/unlock.bats` (T6.5-2, with a stubbed `docker`), shellcheck, and `bash -n` under `bash:3.2.57`.
-- **Integration:** `materials_unlock_test.go`, T6.5-4. It takes each answer from the running lab with the cheat-sheet queries (reusing the T6.1-4 chains) and feeds it to `./unlock.sh`, from question 1 to the closing message. It sorts after `materials_test.go` and before `session_test.go`.
+- **Integration:** `materials_unlock_test.go`, T6.5-4. It feeds each answer to `./unlock.sh`, from question 1 to the closing message, checks with `./incident.sh status` that each unlock started or cleared the right mode, and takes each answer from the running lab with the cheat-sheet queries (reusing the T6.1-4 chains). It sorts after `materials_test.go` and before `session_test.go`.
 
 The exit test is T6.5-4. The answers are not in the repo: they are on the facilitator's answer key (S6.3).
 
@@ -167,6 +167,6 @@ The exit test is T6.5-4. The answers are not in the repo: they are on the facili
 ./unlock.sh 1; echo $?            # usage on stderr, then 2
 ./unlock.sh 7 anything; echo $?   # usage on stderr, then 2
 ```
-Then, with the facilitator's answer key, run `./unlock.sh N <answer>` for N = 1 to 6. Each prints the next question (the sixth, the closing message) and exits 0. Try one answer in capitals, with extra spaces and in quotes: it still unlocks. Read every printed question: none names a cause.
+Then, with the facilitator's answer key, run `./unlock.sh N <answer>` for N = 1 to 6. Each prints the next question (the sixth, the closing message) and exits 0. After answers 2, 3 and 4, `./incident.sh status` shows modes A, B and C; after answer 5 it shows `none`. A wrong answer leaves the mode alone. Try one answer in capitals, with extra spaces and in quotes: it still unlocks. Read every printed question: none names a cause.
 
 `[M]` for the facilitator: MT6.5-1 (solo gated run in 12 minutes or less; supersedes MT6.2-1) and MT6.5-2 (the six passwords are on the answer key), both on #54.
