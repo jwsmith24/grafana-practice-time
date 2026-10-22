@@ -75,10 +75,11 @@ func TestNoInternalDetails(t *testing.T) {
 // the evidence each mode leaves in the logs.
 var causeWords = []string{"sku", "1042", "latency", "slow", "token", "auth", "credential", "rejected", "deploy", "1.4.3", "deadline", "timeout"}
 
-// The cheat sheet must not point at any mode's cause.
+// T6.2-2, and the same check for the cheat sheet.
 func TestMaterialsRevealNothing(t *testing.T) {
 	files := map[string][]string{
 		"materials/logql-cheat-sheet.md": causeWords,
+		"materials/worksheet.md":         causeWords,
 	}
 	for f, words := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))
