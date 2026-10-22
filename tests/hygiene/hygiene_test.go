@@ -75,14 +75,18 @@ func TestNoInternalDetails(t *testing.T) {
 // the evidence each mode leaves in the logs.
 var causeWords = []string{"sku", "1042", "latency", "slow", "token", "auth", "credential", "rejected", "deploy", "1.4.3", "deadline", "timeout"}
 
-// T6.2-2, and the same check for the cheat sheet. The demo script walks
+// T6.2-2, and the same check for the cheat sheet, and (T6.5-5) for the
+// worksheet's other questions and unlock messages. The demo script walks
 // through mode B in the open, so it is only kept clear of the other modes'
 // evidence.
 func TestMaterialsRevealNothing(t *testing.T) {
 	files := map[string][]string{
-		"materials/logql-cheat-sheet.md": causeWords,
-		"materials/worksheet.md":         causeWords,
-		"materials/demo-script.md":       {"sku", "1042", "token", "auth", "credential", "rejected", "deploy", "1.4.3"},
+		"materials/logql-cheat-sheet.md":   causeWords,
+		"materials/worksheet.md":           causeWords,
+		"services/cmd/labctl/questions.go": causeWords,
+		"services/cmd/labctl/unlock.go":    causeWords,
+		"unlock.sh":                        causeWords,
+		"materials/demo-script.md":         {"sku", "1042", "token", "auth", "credential", "rejected", "deploy", "1.4.3"},
 	}
 	for f, words := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))

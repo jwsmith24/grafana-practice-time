@@ -1,6 +1,6 @@
 # Handoff: Grafana Troubleshooting Lab
 
-You're continuing a nearly built project. M1–M5 are merged, and M6 (materials) is in its PR. What's left is M7, after the human's dry run.
+You're continuing a nearly built project. M1–M6 are merged, and S6.5 (the gated worksheet, #54) was added on 2026-10-22 before the dry run. What's left is M7, after the human's dry run.
 
 Read this file, then `docs/PLAN.md` for the issue index, the test conventions, and the spec risks, then `docs/VERIFY.md` for how to verify each milestone. The GitHub issues in `jwsmith24/grafana-practice-time` carry the scope and the named tests for every slice. Each slice issue has an **Acceptance criteria → tests** table, and those tests are the definition of done. The spec itself is not in the repo; ask the human if you need it.
 
@@ -25,19 +25,20 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 | M3 Metrics and dashboard (S3.1–S3.5: #12–#16) | **Merged** | PR #50 |
 | M4 Incidents (S4.1–S4.4: #18–#21) | **Merged** | PR #51 |
 | M5 Setup tooling (S5.1–S5.6: #23–#28) | **Merged** | PR #52 |
-| M6 Materials (S6.1 #32, S6.2 #33, S6.4 #35) | Done and verified on a fresh stack; M6 PR open | branch `claude/determined-goodall-arn8hh` |
+| M6 Materials (S6.1 #32, S6.2 #33, S6.4 #35) | **Merged** | PR #53 |
+| S6.5 Gated worksheet (#54) | Done and verified on a fresh stack; PR open, waiting on the human's approval of the question wording | branch `claude/compassionate-mccarthy-mefl52` |
 | M7 Dry run (#37 manual, #38) | Not started | |
 
 - **Playwright retries once in CI.** A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
-- **Manual tests still open:** MT1.1-1 (CI goes red on a failing test) on #2; MT5.4-1 (Wi-Fi off) on #26; MT5.5-1 (Docker Desktop memory) on #27; MT6.1-1 (cheat sheet prints on one page) on #32; MT6.2-1 (solo worksheet run ≤ 12 min) on #33; MT6.4-1 (timed demo ≤ 15 min) and MT6.4-2 (screenshots match the UI) on #35. Checklists are on the issues.
+- **Manual tests still open:** MT1.1-1 (CI goes red on a failing test) on #2; MT5.4-1 (Wi-Fi off) on #26; MT5.5-1 (Docker Desktop memory) on #27; MT6.1-1 (cheat sheet prints on one page) on #32; MT6.5-1 (solo gated worksheet run ≤ 12 min; supersedes MT6.2-1 on #33) and MT6.5-2 (the six passwords are on the answer key) on #54; MT6.4-1 (timed demo ≤ 15 min) and MT6.4-2 (screenshots match the UI) on #35. Checklists are on the issues.
 - **Decision recorded on #5:** labels stay `service`/`level`/`env`, and ASWF uses Loki, so S6.1 needs no translation section. The human still has to update the spec's "Decided" list.
 - **Not for an agent:** #4 (S1.3, Mac pull test), #29 (S5.7, timed Mac setup), #37 (dry run), #30 (GHCR fallback, only if #4 fails), #34 (S6.3, the answer key; it stays out of this repo).
 - **Disk prerequisite is tight.** The seven images take 2.34 GB, and the service build adds the Go image and build cache. The README keeps the spec's 3 GB; the human has been told it may need to be 4 GB.
 
 ## Next steps
 
-1. **Get the M6 PR green and merged.**
-2. **M7:** #38 fixes what the human's dry run (#37) finds. Wait for the dry-run findings; don't start #38 before them.
+1. **Get the S6.5 PR green, approved (the human approves the question wording) and merged** before the dry run.
+2. **M7:** #38 fixes what the human's dry run (#37) finds. It still waits on the dry-run findings; don't start #38 before them.
    - If a finding changes the dashboard or Grafana, regenerate the demo screenshots (see "Materials" below) and ask the human to redo MT6.4-2.
    - If a finding changes a log line, a field, or a cheat-sheet query, T6.1-4 and T6.4-3 will tell you whether the materials still work.
 
@@ -62,7 +63,9 @@ services/                 one Go module (client_golang is the only dependency)
   cmd/inventory           GET /inventory/{item_id}; token auth + rate-limited reject WARN; config watcher (deprecated-key WARN every 2s); store reads the lab mode
   cmd/orders              POST /orders, GET /orders/{id}; inventory client (2s timeout, 504/502); deploy event 1.4.2; release watcher (deploy events on mode change)
   cmd/loadgen             ~5 req/s to orders; summary line every 10s
-  cmd/labctl              set/clear/status of the lab mode
+  cmd/labctl              set/clear/status of the lab mode; `unlock N <answer>` for the gated worksheet
+                          questions.go: questions 2–6 and the closing message, answers as SHA-256 hashes only
+                          unlock.go: matching (lowercase, trim, collapse spaces, strip quotes/backticks); 0 right, 1 wrong, 2 usage
   internal/logging        slog JSON → stdout + /var/log/lab/<svc>.log (truncated on start); time = RFC 3339 ms UTC; levels INFO/WARN/ERROR
   internal/httpx          request log line + metrics observer; Annotate / SetLevel; -healthcheck flag
   internal/metrics        http_requests_total, http_request_duration_seconds
@@ -71,17 +74,19 @@ services/                 one Go module (client_golang is the only dependency)
   internal/{auth,catalog,requestid}
   Dockerfile              one cross-compiling build stage; scratch target per service
 incident.sh               bash 3.2; passes only the argument to `docker compose exec -T orders /labctl`
+unlock.sh                 bash 3.2; passes only `unlock N <answer words…>` (joined by spaces) to the same labctl
 tests/static              Go: compose config, image is static + has no shell, prometheus.yml, dashboard JSON
 tests/integration         Go, build tag `integration`; reaches Loki/Prometheus via Grafana's datasource proxy
                           incident_test.go: T4.1 + shared helpers (incidentSh, waitQuiet, orders5xx, postOrder)
                           mode_{a,b,c}_test.go: one TestMode<letter> per incident
                           materials_baseline_test.go (T6.2-3), materials_demo_test.go (T6.4-3), materials_test.go (T6.1-3, T6.1-4 chains)
+                          materials_unlock_test.go (T6.5-4): whole gated chain via ./unlock.sh, answers taken from the lab
                           session_test.go: sorts last; T4.4-7 red herring over the whole run
-materials/                logql-cheat-sheet.md (10 templates, <placeholder> names), worksheet.md (6 questions), demo-script.md (mode B, 7 steps)
+materials/                logql-cheat-sheet.md (10 templates, <placeholder> names), worksheet.md (intro + question 1; 2–6 come from ./unlock.sh), demo-script.md (mode B, 7 steps)
                           demo/step-N.png: the demo's screenshot fallbacks, made by tests/e2e/capture
 tests/e2e                 Playwright 1.56.1 (data links, deploy annotation)
                           capture/ + capture.config.ts: regenerates materials/demo/*.png; not part of the suite
-tests/scripts             bats tests for incident.sh with a stubbed docker
+tests/scripts             bats tests for incident.sh and unlock.sh with a stubbed docker
 tests/lifecycle           Go, build tag `lifecycle`: tests that start, stop, reset or break the stack themselves (check.sh
                           faults, port conflict, GRAFANA_PORT, reset, offline via iptables, memory soak, image sizes, multi-arch)
 tests/hygiene             denylist scan of tracked files (denylist.txt); per-file cause words for materials/; gitleaks runs in CI
@@ -153,7 +158,8 @@ check.sh                  bash 3.2 + curl + docker; PASS/FAIL per check with a f
 - **Short mode tests must wait for their own errors to stop.** The M6 chains clear a mode seconds after starting it, often before Prometheus has scraped any 5xx, so the next test's `waitQuiet` reads 0 while 504s and 502s are still in flight. Those then land in the next mode's window (it broke T4.3-4 once). `triggerMode`'s cleanup waits until orders has logged no ERROR line for 10 s. Use `triggerMode` for any new test that switches a mode on.
 - **T6.1-4 for C starts from the dashboard's Deploys annotation.** The chain reads the field and value to filter on from the annotation's expression, the way an attendee reads the marker.
 - **Regenerating the screenshots:** start a fresh stack (`down -v`, `up`), wait about two minutes so the graphs have a healthy stretch, then run `(cd tests/e2e && npx playwright test -c capture.config.ts)`. A fresh stack matters: on a used one, earlier modes' deploy markers and WARN lines show up in the pictures. The spec keeps mode B running by re-running `./incident.sh B` every 10 s, so `INCIDENT_DURATION` doesn't matter. Look at every image before you commit.
-- **Cause words.** `tests/hygiene` keeps every mode's evidence (`sku`, `token`, `deploy`, `1.4.3`, `deadline`, `timeout`, …) out of the cheat sheet and the worksheet, and A's and C's out of the demo script. The words aren't matched in the PNGs, so check them by eye.
+- **The gated worksheet (S6.5).** Questions 2–6 live in `services/cmd/labctl/questions.go`; editing them means rebuilding the orders image. The answers are stored only as `sha256("lab-q<N>:" + normalize(answer))`, and the plain answers are on the facilitator's answer key, never in the repo, an issue or a PR. T6.5-4 writes down only question 1's field and question 4's service, and takes the other answers from the lab. Any change to a mode's evidence that changes an answer needs a new hash and an answer-key update.
+- **Cause words.** `tests/hygiene` keeps every mode's evidence (`sku`, `token`, `deploy`, `1.4.3`, `deadline`, `timeout`, …) out of the cheat sheet, the worksheet, `labctl`'s questions and unlock messages, and `unlock.sh`, and A's and C's out of the demo script. The words aren't matched in the PNGs, so check them by eye.
 
 ## Public repo: don't leak the answers
 

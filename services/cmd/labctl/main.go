@@ -1,8 +1,10 @@
-// Command labctl sets, clears and reports the lab mode.
+// Command labctl sets, clears and reports the lab mode, and unlocks the
+// worksheet's questions.
 //
-//	labctl A|B|C   activate a mode (restarts its timer)
-//	labctl clear   end the active mode
-//	labctl status  print the active mode
+//	labctl A|B|C               activate a mode (restarts its timer)
+//	labctl clear               end the active mode
+//	labctl status              print the active mode
+//	labctl unlock N <answer>   check the answer to question N; print the next one
 package main
 
 import (
@@ -16,13 +18,16 @@ import (
 	"github.com/jwsmith24/grafana-practice-time/services/internal/incident"
 )
 
-const usage = "usage: labctl A|B|C|clear|status"
+const usage = "usage: labctl A|B|C|clear|status, or labctl unlock N <answer>"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "unlock" {
+		return unlock(args[1:], labWorksheet, stdout, stderr)
+	}
 	if len(args) != 1 {
 		fmt.Fprintln(stderr, usage)
 		return 2

@@ -142,11 +142,31 @@ The exit tests are T6.1-4 and T6.4-3. S6.3, the answer key, is kept outside this
 
 **By hand**, with the stack started as above:
 1. Print `materials/logql-cheat-sheet.md` to PDF (for example from GitHub's rendered view). It fits on one page (MT6.1-1, on #32).
-2. Read `materials/worksheet.md`: six questions, and none of them names a cause. Paste each cheat-sheet query into Explore with the placeholders filled in, and check that each one returns data.
+2. Read `materials/worksheet.md` (question 1; since S6.5, questions 2 to 6 are printed by `./unlock.sh`), and none of them names a cause. Paste each cheat-sheet query into Explore with the placeholders filled in, and check that each one returns data.
 3. Walk through `materials/demo-script.md` with `./incident.sh B`. Each step's query returns what the step describes, and its screenshot matches the current UI (MT6.4-2, on #35).
 4. To regenerate the screenshots after a dashboard or Grafana change, start a fresh stack (`down -v`, then `up`), wait two minutes, and run:
    ```sh
    (cd tests/e2e && npx playwright test -c capture.config.ts)   # about 1.5 min; rewrites materials/demo/*.png
    ```
 
-`[M]` for the facilitator: MT6.2-1 (solo worksheet run in 12 minutes or less) on #33, and MT6.4-1 (timed rehearsal in 15 minutes or less) on #35.
+`[M]` for the facilitator: MT6.2-1 (solo worksheet run in 12 minutes or less; superseded by MT6.5-1) on #33, and MT6.4-1 (timed rehearsal in 15 minutes or less) on #35.
+
+## S6.5 Gated worksheet: each answer unlocks the next question
+
+**Automated:** T6.5-1 to T6.5-6, and T6.2-1 as updated.
+- **Unit:** `services/cmd/labctl/unlock_test.go`. T6.5-1 runs `labctl unlock` against a made-up question table: lenient matching, the neutral wrong-answer line and exit 1, usage and exit 2, the closing message. `TestLabWorksheet` checks the real table: questions 1 to 6 in order, each mode question runs only its own letter, and every stored answer is a 64-hex SHA-256 digest.
+- **Static:** `tests/static/worksheet_test.go` (T6.2-1, T6.5-3: the worksheet holds only question 1, the intro, the notes template, how to unlock and the escape hatch), `readme_test.go` (T6.5-6), and `tests/hygiene` (T6.5-5: the worksheet's cause-word list also covers `services/cmd/labctl/questions.go`, `unlock.go` and `unlock.sh`).
+- **Scripts:** `tests/scripts/unlock.bats` (T6.5-2, with a stubbed `docker`), shellcheck, and `bash -n` under `bash:3.2.57`.
+- **Integration:** `materials_unlock_test.go`, T6.5-4. It takes each answer from the running lab with the cheat-sheet queries (reusing the T6.1-4 chains) and feeds it to `./unlock.sh`, from question 1 to the closing message. It sorts after `materials_test.go` and before `session_test.go`.
+
+The exit test is T6.5-4. The answers are not in the repo: they are on the facilitator's answer key (S6.3).
+
+**By hand**, with the stack started as above:
+```sh
+./unlock.sh 1 wrong; echo $?      # "Not quite. Check your answer and try again.", then 1
+./unlock.sh 1; echo $?            # usage on stderr, then 2
+./unlock.sh 7 anything; echo $?   # usage on stderr, then 2
+```
+Then, with the facilitator's answer key, run `./unlock.sh N <answer>` for N = 1 to 6. Each prints the next question (the sixth, the closing message) and exits 0. Try one answer in capitals, with extra spaces and in quotes: it still unlocks. Read every printed question: none names a cause.
+
+`[M]` for the facilitator: MT6.5-1 (solo gated run in 12 minutes or less; supersedes MT6.2-1) and MT6.5-2 (the six passwords are on the answer key), both on #54.

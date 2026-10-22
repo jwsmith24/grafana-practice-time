@@ -231,6 +231,14 @@ func contains(list []string, s string) bool {
 // queries only, each filled in from the results before it. The queries cover
 // the time since the switch, so they still work after a short mode clears.
 func TestCheatSheetFindsA(t *testing.T) {
+	if item := chainA(t); item != "SKU-1042" {
+		t.Fatalf("mode A chain found item_id %s, want SKU-1042", item)
+	}
+}
+
+// chainA runs mode A's chain and returns the one item_id the errors share.
+func chainA(t *testing.T) string {
+	t.Helper()
 	start := triggerMode(t, "A")
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
@@ -247,9 +255,10 @@ func TestCheatSheetFindsA(t *testing.T) {
 		"field": field, "service": "orders", "level": "ERROR", "range": rangeSince(start),
 	})
 	res := lokiVector(t, q)
-	if len(res) != 1 || res[0].Metric[field] != "SKU-1042" {
-		t.Fatalf("%s: %v, want one series with item_id SKU-1042", q, res)
+	if len(res) != 1 {
+		t.Fatalf("%s: %v, want one series", q, res)
 	}
+	return res[0].Metric[field]
 }
 
 func TestCheatSheetFindsB(t *testing.T) {
@@ -284,6 +293,15 @@ func TestCheatSheetFindsB(t *testing.T) {
 }
 
 func TestCheatSheetFindsC(t *testing.T) {
+	if v := chainC(t); v != "1.4.3" {
+		t.Fatalf("mode C chain found version %s, want 1.4.3", v)
+	}
+}
+
+// chainC runs mode C's chain and returns the version of the first deploy
+// line since the switch.
+func chainC(t *testing.T) string {
+	t.Helper()
 	start := triggerMode(t, "C")
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
@@ -306,10 +324,8 @@ func TestCheatSheetFindsC(t *testing.T) {
 	}
 	q := fill(t, template(t, `| json | <field>="<value>"`), map[string]string{"service": "orders", "field": m[1], "value": m[2]})
 	deploys := eventuallyLines(t, q, start.Add(-time.Second))
-	if deploys[0].str("version") != "1.4.3" {
-		t.Fatalf("first deploy line since the switch: %v, want version 1.4.3", deploys[0].fields)
-	}
 	if gap := warns[0].ts.Sub(deploys[0].ts); gap < 0 || gap > 5*time.Second {
-		t.Fatalf("auth token rejected starts %s after the 1.4.3 deploy, want 0-5s", gap)
+		t.Fatalf("auth token rejected starts %s after the deploy of %v, want 0-5s", gap, deploys[0].fields)
 	}
+	return deploys[0].str("version")
 }
