@@ -22,7 +22,10 @@ Run the whole automated suite:
 bats tests/scripts && shellcheck incident.sh               # [S], from M4
 (cd tests && go test -tags integration -count=1 ./integration/...)   # [I], ~2 min
 (cd tests/e2e && npm ci && npx playwright test)            # [E]
+(cd tests && LIFECYCLE_OFFLINE=1 go test -tags lifecycle -count=1 -timeout 60m ./lifecycle/...)  # [I], from M5, ~15 min
 ```
+
+The lifecycle tests start, stop and reset the stack themselves, so don't run them while another suite is using it. `LIFECYCLE_OFFLINE=1` lets them block outbound traffic with iptables (root or passwordless sudo). `LAB_SOAK=1` adds the 14-minute memory soak, which the nightly run sets.
 
 Run the integration tests against a fresh stack (`down -v` first). T2.4-4 asserts that the last 2 minutes contain no ERROR lines, and later tests deliberately create some.
 
@@ -98,3 +101,30 @@ For each of `A`, `B`, and `C`, on a stack that has been quiet for a minute:
 4. The switch ends by itself after 15 s, and `./incident.sh status` prints `none`. New requests succeed at once. The panels use 1m windows, so they take about a minute to settle.
 
 Then check that switching leaves no trace in the logs: in Explore, `{env="lab"} |~ "(?i)incident"` returns no lines.
+
+## M5 Setup tooling: a fresh clone reaches a passing `check.sh` with no help
+
+**Automated:** T5.1-x to T5.6-x.
+- **Static:** `tests/static/env_test.go`, `readme_test.go`, `tests/hygiene`, and gitleaks in CI.
+- **Lifecycle:** `tests/lifecycle`, a separate CI job.
+- **Scripts:** shellcheck, plus `bash -n` under `bash:3.2.57`.
+
+The exit test is **T5.3-1** (`TestReset`).
+
+**By hand**, as an attendee would, starting from a fresh clone and no `.env`:
+```sh
+cp .env.example .env
+docker compose up -d
+./check.sh; echo $?             # ten PASS lines, "All checks passed", then 0
+docker compose stop loki
+./check.sh; echo $?             # FAIL  Loki is ready, a fix, the facilitator line, then 1
+docker compose up -d --wait
+docker compose down -v && docker compose up -d --wait && ./check.sh   # passes again
+docker stats --no-stream        # the lab's containers add up to well under 2 GB
+```
+Then:
+1. Follow `README.md` from top to bottom, and check that every command in it works as written.
+2. Set `GRAFANA_PORT=3301` in `.env` and run `docker compose up -d`. Grafana moves to http://localhost:3301, and `./check.sh` follows it.
+
+`[M]` on a real Mac: MT5.4-1 (Wi-Fi off) on #26, and MT5.5-1 (Docker Desktop memory) on #27, recorded during S5.7 (#29).
+

@@ -2,7 +2,10 @@ name: grafana-lab
 
 services:
   loki:
-    image: grafana/loki:3.5.7
+    image: ${IMAGE_REGISTRY:-docker.io}/grafana/loki:${LOKI_TAG:-3.5.7}
+    mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 460MiB
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
@@ -16,7 +19,10 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.7.3
+    image: ${IMAGE_REGISTRY:-docker.io}/prom/prometheus:${PROMETHEUS_TAG:-v3.7.3}
+    mem_limit: 384m
+    environment:
+      GOMEMLIMIT: 345MiB
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -33,7 +39,10 @@ services:
     restart: unless-stopped
 
   alloy:
-    image: grafana/alloy:v1.11.3
+    image: ${IMAGE_REGISTRY:-docker.io}/grafana/alloy:${ALLOY_TAG:-v1.11.3}
+    mem_limit: 320m
+    environment:
+      GOMEMLIMIT: 288MiB
     command:
       - run
       - /etc/alloy/config.alloy
@@ -58,8 +67,13 @@ services:
     build:
       context: services
       target: inventory
+      args: &build-args
+        IMAGE_REGISTRY: ${IMAGE_REGISTRY:-docker.io}
+        GO_TAG: ${GO_TAG:-1.24.9-alpine}
     image: grafana-lab/inventory:dev
+    mem_limit: 96m
     environment:
+      GOMEMLIMIT: 86MiB
       SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
       INCIDENT_DURATION: ${INCIDENT_DURATION:-3m}
     volumes:
@@ -77,8 +91,11 @@ services:
     build:
       context: services
       target: orders
+      args: *build-args
     image: grafana-lab/orders:dev
+    mem_limit: 96m
     environment:
+      GOMEMLIMIT: 86MiB
       SERVICE_TOKEN: ${SERVICE_TOKEN:-7f3c9a1e5b2d4f60}
       INVENTORY_URL: http://inventory:8080
       INCIDENT_DURATION: ${INCIDENT_DURATION:-3m}
@@ -100,8 +117,11 @@ services:
     build:
       context: services
       target: loadgen
+      args: *build-args
     image: grafana-lab/loadgen:dev
+    mem_limit: 64m
     environment:
+      GOMEMLIMIT: 57MiB
       TARGET_URL: http://orders:8080
     volumes:
       - lab-logs:/var/log/lab
@@ -117,10 +137,12 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:12.2.1
+    image: ${IMAGE_REGISTRY:-docker.io}/grafana/grafana:${GRAFANA_TAG:-12.2.1}
+    mem_limit: 512m
     ports:
       - "${GRAFANA_PORT:-3300}:3000"
     environment:
+      GOMEMLIMIT: 460MiB
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_AUTH_ANONYMOUS_ENABLED: "true"

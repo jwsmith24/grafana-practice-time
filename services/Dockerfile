@@ -1,5 +1,7 @@
 # One build stage for every service; pick one with --target <service>.
-FROM --platform=$BUILDPLATFORM golang:1.24.9-alpine AS build
+ARG IMAGE_REGISTRY=docker.io
+ARG GO_TAG=1.24.9-alpine
+FROM --platform=$BUILDPLATFORM ${IMAGE_REGISTRY}/library/golang:${GO_TAG} AS build
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src

@@ -35,7 +35,7 @@ Each acceptance criterion in an issue names its tests as `T<slice>-<n>` (automat
 |---|---|---|---|
 | `[U]` | Go unit test | `services/**/_test.go` (`go test ./...`) | every push |
 | `[S]` | Static check: compose config, dashboard JSON, Alloy/Prometheus config, Markdown structure, shellcheck, bats tests for scripts with a stubbed `docker` | `tests/static`, `tests/scripts` | every push |
-| `[I]` | Integration test against the live compose stack | `tests/integration` (Go, `//go:build integration`) | every push (fast); nightly for long runs |
+| `[I]` | Integration test against the live compose stack | `tests/integration` (Go, `//go:build integration`); tests that start, stop, reset or break the stack themselves go in `tests/lifecycle` (`//go:build lifecycle`, its own CI job) | every push (fast); nightly for long runs |
 | `[E]` | Browser e2e (Playwright) | `tests/e2e` | every push |
 | `[M]` | Manual check, with the result recorded as a comment on its issue | — | per issue |
 
