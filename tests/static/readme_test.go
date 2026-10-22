@@ -133,3 +133,13 @@ func TestReadmeTiming(t *testing.T) {
 		t.Error("check.sh's failure footer does not tell attendees to message the facilitator")
 	}
 }
+
+// T6.5-6
+func TestReadmeWorksheet(t *testing.T) {
+	sec := readmeSections(t)["Worksheet"]
+	for _, w := range []string{"materials/worksheet.md", "./unlock.sh 1 <answer>"} {
+		if !strings.Contains(sec, w) {
+			t.Errorf("the Worksheet section does not mention %q", w)
+		}
+	}
+}

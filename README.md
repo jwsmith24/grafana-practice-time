@@ -50,6 +50,16 @@ The facilitator will tell you which mode to start. Each mode ends by itself afte
 
 Your job is to work out what is wrong from Grafana alone, without reading the lab's source code.
 
+## Worksheet
+
+The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet starts with question 1. Each answer is a password that unlocks the next question:
+
+```sh
+./unlock.sh 1 <answer>   # a right answer prints question 2, and so on
+```
+
+Stuck on a question for more than 5 minutes? Ask the facilitator.
+
 ## Reset
 
 To start over with an empty lab (no logs, no metrics, no running mode):

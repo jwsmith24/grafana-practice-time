@@ -37,30 +37,32 @@ func worksheetQuestions(t *testing.T) []question {
 
 var incidentCmd = regexp.MustCompile(`\./incident\.sh ([A-Za-z]+)`)
 
-// T6.2-1
+// T6.2-1, updated for S6.5: the worksheet holds question 1 only, a warm-up.
+// Questions 2 to 6 are printed by ./unlock.sh; their order is checked by
+// labctl's TestLabWorksheet.
 func TestWorksheetStructure(t *testing.T) {
 	qs := worksheetQuestions(t)
-	kinds := []string{"Warm-up: ", "Warm-up: ", "Mode A", "Mode B", "Mode C", "Stretch: "}
-	if len(qs) != len(kinds) {
-		t.Fatalf("%d questions, want %d", len(qs), len(kinds))
+	if len(qs) != 1 || qs[0].n != 1 || !strings.HasPrefix(qs[0].title, "Warm-up: ") {
+		t.Fatalf("worksheet questions %+v, want only 1. Warm-up: ...", qs)
 	}
-	for i, q := range qs {
-		if q.n != i+1 {
-			t.Errorf("question %d is numbered %d", i+1, q.n)
+}
+
+// T6.5-3: besides question 1, the worksheet has the intro, the notes
+// template, how to unlock, and the escape hatch, and runs no mode itself.
+func TestWorksheetGated(t *testing.T) {
+	ws := readFile(t, worksheetPath)
+	intro, q1, _ := strings.Cut(ws, "\n## 1. ")
+	for _, w := range []string{"Work in pairs", "./unlock.sh 1 <answer>", "more than 5 minutes, ask the facilitator", "For questions 3 to 5, write down:", "**Root cause:**", "./incident.sh status"} {
+		if !strings.Contains(intro, w) {
+			t.Errorf("worksheet intro does not say %q", w)
 		}
-		if !strings.HasPrefix(q.title, kinds[i]) {
-			t.Errorf("question %d is %q, want it to start with %q", i+1, q.title, kinds[i])
-		}
-		var letters []string
-		for _, m := range incidentCmd.FindAllStringSubmatch(q.body, -1) {
-			letters = append(letters, m[1])
-		}
-		want := []string{}
-		if letter, ok := strings.CutPrefix(kinds[i], "Mode "); ok {
-			want = []string{letter}
-		}
-		if strings.Join(letters, ",") != strings.Join(want, ",") {
-			t.Errorf("question %d runs ./incident.sh %v, want %v", i+1, letters, want)
+	}
+	if !strings.Contains(q1, "The password is ") {
+		t.Error("question 1 does not say what its password is")
+	}
+	for _, m := range incidentCmd.FindAllStringSubmatch(ws, -1) {
+		if m[1] != "status" {
+			t.Errorf("worksheet runs %q; the mode questions are printed by ./unlock.sh", m[0])
 		}
 	}
 }

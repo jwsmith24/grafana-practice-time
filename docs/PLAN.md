@@ -13,7 +13,7 @@ Schedule from the spec: M1–M6 are done by **Oct 22, 2026**; the dry run (M7) r
 | M3 Metrics and dashboard | [#11](https://github.com/jwsmith24/grafana-practice-time/issues/11) | S3.1 [#12](https://github.com/jwsmith24/grafana-practice-time/issues/12) metrics + Prometheus · S3.2 [#13](https://github.com/jwsmith24/grafana-practice-time/issues/13) Prometheus panels + home · S3.3 [#14](https://github.com/jwsmith24/grafana-practice-time/issues/14) Loki panels · S3.4 [#15](https://github.com/jwsmith24/grafana-practice-time/issues/15) data links · S3.5 [#16](https://github.com/jwsmith24/grafana-practice-time/issues/16) deploy annotations |
 | M4 Incidents | [#17](https://github.com/jwsmith24/grafana-practice-time/issues/17) | S4.1 [#18](https://github.com/jwsmith24/grafana-practice-time/issues/18) switch + `incident.sh` · S4.2 [#19](https://github.com/jwsmith24/grafana-practice-time/issues/19) incident B · S4.3 [#20](https://github.com/jwsmith24/grafana-practice-time/issues/20) incident A · S4.4 [#21](https://github.com/jwsmith24/grafana-practice-time/issues/21) incident C |
 | M5 Setup tooling | [#22](https://github.com/jwsmith24/grafana-practice-time/issues/22) | S5.1 [#23](https://github.com/jwsmith24/grafana-practice-time/issues/23) `.env` + pinned images · S5.2 [#24](https://github.com/jwsmith24/grafana-practice-time/issues/24) `check.sh` · S5.3 [#25](https://github.com/jwsmith24/grafana-practice-time/issues/25) reset · S5.4 [#26](https://github.com/jwsmith24/grafana-practice-time/issues/26) offline · S5.5 [#27](https://github.com/jwsmith24/grafana-practice-time/issues/27) memory · S5.6 [#28](https://github.com/jwsmith24/grafana-practice-time/issues/28) README + hygiene · S5.7 [#29](https://github.com/jwsmith24/grafana-practice-time/issues/29) timed Mac setup · S5.8 [#30](https://github.com/jwsmith24/grafana-practice-time/issues/30) GHCR fallback (conditional) |
-| M6 Materials | [#31](https://github.com/jwsmith24/grafana-practice-time/issues/31) | S6.1 [#32](https://github.com/jwsmith24/grafana-practice-time/issues/32) cheat sheet · S6.2 [#33](https://github.com/jwsmith24/grafana-practice-time/issues/33) worksheet · S6.3 [#34](https://github.com/jwsmith24/grafana-practice-time/issues/34) answer key (private) · S6.4 [#35](https://github.com/jwsmith24/grafana-practice-time/issues/35) demo script |
+| M6 Materials | [#31](https://github.com/jwsmith24/grafana-practice-time/issues/31) | S6.1 [#32](https://github.com/jwsmith24/grafana-practice-time/issues/32) cheat sheet · S6.2 [#33](https://github.com/jwsmith24/grafana-practice-time/issues/33) worksheet · S6.3 [#34](https://github.com/jwsmith24/grafana-practice-time/issues/34) answer key (private) · S6.4 [#35](https://github.com/jwsmith24/grafana-practice-time/issues/35) demo script · S6.5 [#54](https://github.com/jwsmith24/grafana-practice-time/issues/54) gated worksheet (`./unlock.sh`) |
 | M7 Dry run | [#36](https://github.com/jwsmith24/grafana-practice-time/issues/36) | S7.1 [#37](https://github.com/jwsmith24/grafana-practice-time/issues/37) run the dry run · S7.2 [#38](https://github.com/jwsmith24/grafana-practice-time/issues/38) fix findings |
 
 ## Critical path
@@ -57,7 +57,7 @@ Harness decisions (introduced in S1.1):
 | AC5 | Each incident's root cause is findable using only the cheat-sheet queries | T6.1-3, T6.1-4 | — |
 | AC6 | The red herring is the highest-volume WARN line in the lab | T2.4-3 (baseline), T4.4-7 (full session) | — |
 | AC7 | `docker compose down -v` then `up -d` restores a clean lab with no manual steps | T5.3-1, T5.3-2, T5.3-3, T5.3-4 | — |
-| AC8 | A dry-run pair completes the worksheet in 17 minutes or less | — | MT6.2-1 (facilitator pre-check), MT7.1-2 |
+| AC8 | A dry-run pair completes the worksheet in 17 minutes or less | — | MT6.5-1 (facilitator pre-check; supersedes MT6.2-1), MT7.1-2 |
 
 ## Milestone "done when" → tests
 
@@ -68,7 +68,7 @@ Harness decisions (introduced in S1.1):
 | M3 | A panel's data link opens the matching logs in Explore | T3.4-2 |
 | M4 | Each incident is findable by its expected discovery path | T4.2-4, T4.3-4, T4.4-5 |
 | M5 | `check.sh`, `.env` port handling, pinned images, README | T5.1-x, T5.2-x, T5.6-x |
-| M6 | Worksheet, answer key, demo script, cheat sheet | T6.1-x – T6.4-x |
+| M6 | Worksheet, answer key, demo script, cheat sheet | T6.1-x – T6.5-x |
 | M7 | The dry-run pair completes setup and the worksheet unaided | MT7.1-1, MT7.1-2 |
 
 ## Spec gaps and risks found while planning
