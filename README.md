@@ -58,6 +58,8 @@ The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet 
 ./unlock.sh 1 <answer>   # a right answer prints question 2, and so on
 ```
 
+Unlocking questions 3 to 5 starts the lab's modes for you, so you don't need `./incident.sh` during the worksheet.
+
 Stuck on a question for more than 5 minutes? Ask the facilitator.
 
 ## Reset

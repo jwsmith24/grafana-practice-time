@@ -47,12 +47,12 @@ func TestWorksheetStructure(t *testing.T) {
 	}
 }
 
-// T6.5-3: besides question 1, the worksheet has the intro, the notes
-// template, how to unlock, and the escape hatch, and runs no mode itself.
+// T6.5-3: besides question 1, the worksheet has the intro, the tips, how to
+// unlock, and the escape hatch. It never runs incident.sh: unlocking does.
 func TestWorksheetGated(t *testing.T) {
 	ws := readFile(t, worksheetPath)
 	intro, q1, _ := strings.Cut(ws, "\n## 1. ")
-	for _, w := range []string{"Work in pairs", "./unlock.sh 1 <answer>", "more than 5 minutes, ask the facilitator", "For questions 3 to 5, write down:", "**Root cause:**", "./incident.sh status"} {
+	for _, w := range []string{"Work in pairs", "./unlock.sh 1 <answer>", "more than 5 minutes, ask the facilitator", "**Code**", "run the same `./unlock.sh` command again"} {
 		if !strings.Contains(intro, w) {
 			t.Errorf("worksheet intro does not say %q", w)
 		}
@@ -60,9 +60,7 @@ func TestWorksheetGated(t *testing.T) {
 	if !strings.Contains(q1, "The password is ") {
 		t.Error("question 1 does not say what its password is")
 	}
-	for _, m := range incidentCmd.FindAllStringSubmatch(ws, -1) {
-		if m[1] != "status" {
-			t.Errorf("worksheet runs %q; the mode questions are printed by ./unlock.sh", m[0])
-		}
+	if m := incidentCmd.FindString(ws); m != "" {
+		t.Errorf("worksheet runs %q; ./unlock.sh starts and clears the modes", m)
 	}
 }

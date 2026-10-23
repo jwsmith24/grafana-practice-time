@@ -1,6 +1,6 @@
 # Troubleshooting worksheet
 
-Work in pairs: one person drives Grafana, the other keeps notes, and you swap after each question. Use only Grafana (the **Lab Overview** dashboard and **Explore**) and the queries on the LogQL cheat sheet. Don't read the lab's source code.
+Work in pairs: one person drives Grafana, the other reads the steps, and you swap after each question. Use only Grafana (the **Lab Overview** dashboard and **Explore**) and the queries on the LogQL cheat sheet. Don't read the lab's source code.
 
 You get one question at a time. Each answer is a password that unlocks the next question: answer question 1 below, then run
 
@@ -10,18 +10,13 @@ You get one question at a time. Each answer is a password that unlocks the next 
 
 from the lab's folder. A right answer prints question 2, and so on; the sixth prints a closing message. Case and extra spaces don't matter, and you don't need quotes. A wrong answer prints "Not quite": look again and retry. If you've been stuck on one question for more than 5 minutes, ask the facilitator.
 
-Each mode ends by itself after 3 minutes, and its logs stay in Loki. If you need it running again, start it again. Before you start a mode, check that `./incident.sh status` prints `none`.
+Tips:
 
-For questions 3 to 5, write down:
+- "Query 1" means query 1 on the cheat sheet. In Explore, switch the query editor to **Code** and paste it, then replace each `<placeholder>`. The dropdowns only list a value once a line with it exists, so a value you need may not be there yet.
+- Questions 3 to 5 each start a mode in the lab when you unlock them, and the right answer to question 5 puts the lab back to normal. A mode ends by itself after 3 minutes; if it ends before you've found the password, run the same `./unlock.sh` command again to restart it.
 
-- **When:** the time it started (and ended, if it has).
-- **Where:** the service whose logs show the problem first.
-- **First error:** the first error or warning line, copied as it appears.
-- **One request:** a `request_id` that shows the problem, and every line it produced.
-- **Root cause:** what is wrong, in one sentence, and the query that proves it.
+## 1. Warm-up: find a request's ID
 
-## 1. Warm-up: what is in a log line?
+In Explore, run query 1 with `service` = `orders` and `level` = `INFO`. Click a line to expand it. One of its fields holds an ID that is different for every request.
 
-Open **Explore** and show the logs of the `orders` service. Which labels does every stream carry? Expand one line: which fields does it have, and which of them would you use to find a single request?
-
-The password is the name of that field.
+The password is that field's name.

@@ -5,6 +5,7 @@
 //	labctl clear               end the active mode
 //	labctl status              print the active mode
 //	labctl unlock N <answer>   check the answer to question N; print the next one
+//	                           and start the mode it needs (or clear the lab)
 package main
 
 import (
@@ -25,10 +26,8 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) > 0 && args[0] == "unlock" {
-		return unlock(args[1:], labWorksheet, stdout, stderr)
-	}
-	if len(args) != 1 {
+	unlocking := len(args) > 0 && args[0] == "unlock"
+	if len(args) != 1 && !unlocking {
 		fmt.Fprintln(stderr, usage)
 		return 2
 	}
@@ -38,6 +37,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	sw := incident.New(httpx.Getenv("LAB_STATE_FILE", "/var/lib/lab/state.json"), d)
+	if unlocking {
+		return unlock(args[1:], labWorksheet, sw, stdout, stderr)
+	}
 
 	switch arg := strings.ToUpper(args[0]); arg {
 	case "CLEAR":

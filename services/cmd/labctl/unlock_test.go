@@ -2,15 +2,30 @@ package main
 
 import (
 	"bytes"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
+// fakeSwitch records the mode changes unlock makes.
+type fakeSwitch struct{ calls []string }
+
+func (f *fakeSwitch) Set(l string) error      { f.calls = append(f.calls, l); return nil }
+func (f *fakeSwitch) Clear() error            { f.calls = append(f.calls, "clear"); return nil }
+func (f *fakeSwitch) Duration() time.Duration { return 3 * time.Minute }
+
 func runUnlock(ws worksheet, args ...string) (int, string, string) {
+	code, out, errOut, _ := runUnlockSw(ws, args...)
+	return code, out, errOut
+}
+
+func runUnlockSw(ws worksheet, args ...string) (int, string, string, []string) {
 	var out, errb bytes.Buffer
-	code := unlock(args, ws, &out, &errb)
-	return code, out.String(), errb.String()
+	sw := &fakeSwitch{}
+	code := unlock(args, ws, sw, &out, &errb)
+	return code, out.String(), errb.String(), sw.calls
 }
 
 // T6.5-1, with made-up answers.
@@ -18,15 +33,26 @@ func TestUnlock(t *testing.T) {
 	ws := worksheet{
 		questions: []question{
 			{title: "1. One", hash: answerHash(1, "alpha")},
-			{title: "2. Two", body: "Second body.", hash: answerHash(2, "Beta Gamma")},
+			{title: "2. Two", body: "Second body.", mode: "B", hash: answerHash(2, "Beta Gamma")},
 			{title: "3. Three", body: "Third body.", hash: answerHash(3, "v-9")},
 		},
 		closing: "The end.",
 	}
 
-	code, out, _ := runUnlock(ws, "1", "alpha")
-	if code != 0 || !strings.Contains(out, "## 2. Two\n\nSecond body.") || !strings.Contains(out, "./unlock.sh 2 <answer>") {
+	// A right answer prints the next question and starts its mode.
+	code, out, _, calls := runUnlockSw(ws, "1", "alpha")
+	if code != 0 || !strings.Contains(out, "## 2. Two\n\n") || !strings.Contains(out, "Second body.") || !strings.Contains(out, "./unlock.sh 2 <answer>") {
 		t.Fatalf("right answer: %d %q", code, out)
+	}
+	if strings.Join(calls, ",") != "B" || !strings.Contains(out, "Mode B is now running") || !strings.Contains(out, "./unlock.sh 1 <answer> again") {
+		t.Fatalf("right answer: mode calls %v, output %q; want B started and how to restart it", calls, out)
+	}
+	// The next question needs no mode: the lab is cleared.
+	if _, out, _, calls := runUnlockSw(ws, "2", "beta gamma"); strings.Join(calls, ",") != "clear" || strings.Contains(out, "Mode") {
+		t.Errorf("answer 2: mode calls %v, output %q; want a clear and no mode line", calls, out)
+	}
+	if _, _, _, calls := runUnlockSw(ws, "3", "v-9"); strings.Join(calls, ",") != "clear" {
+		t.Errorf("last answer: mode calls %v, want a clear", calls)
 	}
 	for _, a := range []string{"ALPHA", "  alpha ", `"alpha"`, "`alpha`", "'Alpha'"} {
 		if code, _, _ := runUnlock(ws, "1", a); code != 0 {
@@ -43,9 +69,9 @@ func TestUnlock(t *testing.T) {
 	// A wrong answer gets the same neutral line whatever was tried.
 	var wrong []string
 	for _, args := range [][]string{{"1", "beta"}, {"1", "alph"}, {"2", "alpha"}, {"3", "v-8"}} {
-		code, out, _ := runUnlock(ws, args...)
-		if code != 1 {
-			t.Errorf("%v: exit %d, want 1", args, code)
+		code, out, _, calls := runUnlockSw(ws, args...)
+		if code != 1 || len(calls) != 0 {
+			t.Errorf("%v: exit %d, mode calls %v; want 1 and none", args, code, calls)
 		}
 		wrong = append(wrong, out)
 	}
@@ -56,13 +82,15 @@ func TestUnlock(t *testing.T) {
 	}
 
 	for _, args := range [][]string{{}, {"1"}, {"0", "alpha"}, {"4", "alpha"}, {"x", "alpha"}, {"1", "  "}, {"1", "alpha", "extra"}} {
-		if code, out, errOut := runUnlock(ws, args...); code != 2 || !strings.Contains(errOut, "usage") || out != "" {
-			t.Errorf("%q: exit %d, stdout %q, stderr %q; want usage and 2", args, code, out, errOut)
+		if code, out, errOut, calls := runUnlockSw(ws, args...); code != 2 || !strings.Contains(errOut, "usage") || out != "" || len(calls) != 0 {
+			t.Errorf("%q: exit %d, stdout %q, stderr %q, mode calls %v; want usage, 2 and no mode change", args, code, out, errOut, calls)
 		}
 	}
 }
 
 func TestUnlockThroughRun(t *testing.T) {
+	t.Setenv("LAB_STATE_FILE", filepath.Join(t.TempDir(), "state.json"))
+	t.Setenv("INCIDENT_DURATION", "")
 	if code, _, errOut := runLabctl(t, "unlock"); code != 2 || !strings.Contains(errOut, "usage") {
 		t.Fatalf("labctl unlock: %d %q", code, errOut)
 	}
@@ -72,8 +100,9 @@ func TestUnlockThroughRun(t *testing.T) {
 }
 
 // T6.5-1 (stored answers are hashes only) and the labctl half of T6.2-1: the
-// questions after the worksheet's first come in the order warm-up, mode A, B,
-// C, stretch, and each mode question runs only its own letter.
+// questions come in the order warm-up, warm-up, mode A, B, C, stretch; each
+// mode question starts its own letter, and no question asks the pair to
+// switch modes themselves.
 func TestLabWorksheet(t *testing.T) {
 	hexHash := regexp.MustCompile(`^[0-9a-f]{64}$`)
 	kinds := []string{"Warm-up: ", "Warm-up: ", "Mode A", "Mode B", "Mode C", "Stretch: "}
@@ -81,7 +110,6 @@ func TestLabWorksheet(t *testing.T) {
 	if len(qs) != len(kinds) {
 		t.Fatalf("%d questions, want %d", len(qs), len(kinds))
 	}
-	incidentCmd := regexp.MustCompile(`\./incident\.sh ([A-Za-z]+)`)
 	for i, q := range qs {
 		if !hexHash.MatchString(q.hash) {
 			t.Errorf("question %d: stored answer %q is not a SHA-256 hex digest", i+1, q.hash)
@@ -96,16 +124,15 @@ func TestLabWorksheet(t *testing.T) {
 		if i > 0 && !strings.Contains(q.body, "The password is ") {
 			t.Errorf("question %d does not say what its password is", i+1)
 		}
-		var letters []string
-		for _, m := range incidentCmd.FindAllStringSubmatch(q.body, -1) {
-			letters = append(letters, m[1])
+		want, _ := strings.CutPrefix(kinds[i], "Mode ")
+		if want == kinds[i] {
+			want = ""
 		}
-		want := ""
-		if letter, ok := strings.CutPrefix(kinds[i], "Mode "); ok {
-			want = letter
+		if q.mode != want {
+			t.Errorf("question %d starts mode %q, want %q", i+1, q.mode, want)
 		}
-		if strings.Join(letters, ",") != want {
-			t.Errorf("question %d runs ./incident.sh %v, want %q", i+1, letters, want)
+		if strings.Contains(q.body, "incident.sh") {
+			t.Errorf("question %d tells the pair to run incident.sh", i+1)
 		}
 	}
 	if labWorksheet.closing == "" {

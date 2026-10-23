@@ -33,19 +33,45 @@ func unlockSh(t *testing.T, n int, answer string) (string, int) {
 	return string(out), 0
 }
 
+// unlockNext runs ./unlock.sh n answer and checks that it printed question
+// n+1, or the closing message after question 6.
+func unlockNext(t *testing.T, n int, answer string) string {
+	t.Helper()
+	out, code := unlockSh(t, n, answer)
+	if code != 0 {
+		t.Fatalf("unlock.sh %d: exit %d, %q", n, code, out)
+	}
+	want := "\n## " + strconv.Itoa(n+1) + ". "
+	if n == 6 {
+		want = "That's all six."
+	}
+	if !strings.Contains(out, want) {
+		t.Fatalf("unlock.sh %d printed %q, want it to contain %q", n, out, want)
+	}
+	return out
+}
+
+// wantStatus checks what ./incident.sh status prints.
+func wantStatus(t *testing.T, prefix string) {
+	t.Helper()
+	if s := incidentSh(t, "status"); !strings.HasPrefix(s, prefix) {
+		t.Fatalf("incident.sh status: %q, want %q", s, prefix)
+	}
+}
+
 // T6.5-4: the gated worksheet end to end. Each answer comes from the lab,
-// found the way the pair finds it, and unlocks the next question; the last
-// one prints the closing message. Only question 1's field and question 4's
+// found the way the pair finds it, and unlocks the next question, which
+// starts the mode it needs; the last answers put the lab back to normal and
+// print the closing message. Only question 1's field and question 4's
 // service are written down here.
 func TestGatedWorksheet(t *testing.T) {
 	if out, code := unlockSh(t, 1, "not it"); code != 1 || !strings.Contains(out, "Not quite") {
 		t.Fatalf("wrong answer: exit %d, %q", code, out)
 	}
 
-	answers := map[int]string{1: "request_id", 4: "inventory"}
-
-	// 2: the service the followed request reached second, after the one that
-	// logged the POST /orders request line.
+	// 1, then 2: the service the followed request reached second, after the
+	// one that logged the POST /orders request line.
+	unlockNext(t, 1, "request_id")
 	id := recentRequestID(t)
 	lines := eventuallyLines(t, fill(t, template(t, "request_id="), map[string]string{"request_id": id}), time.Now().Add(-2*time.Minute))
 	var others []string
@@ -57,10 +83,26 @@ func TestGatedWorksheet(t *testing.T) {
 	if len(others) != 1 {
 		t.Fatalf("request %s: other services %v, want one", id, others)
 	}
-	answers[2] = others[0]
 
-	t.Run("A", func(t *testing.T) { answers[3] = chainA(t) })
-	t.Run("C", func(t *testing.T) { answers[5] = chainC(t) })
+	// Answering 2 starts mode A; answering 3 moves the lab to mode B.
+	t.Run("A", func(t *testing.T) {
+		start := triggerWith(t, "A", func() { unlockNext(t, 2, others[0]) })
+		wantStatus(t, "active: A")
+		unlockNext(t, 3, chainA(t, start))
+		wantStatus(t, "active: B")
+	})
+
+	// Answering 4 starts mode C (the wait for a quiet lab clears B first, so
+	// C's chain sees only its own errors); answering 5 clears it.
+	t.Run("C", func(t *testing.T) {
+		start := triggerWith(t, "C", func() { unlockNext(t, 4, "inventory") })
+		wantStatus(t, "active: C")
+		unlockNext(t, 5, chainC(t, start))
+		wantStatus(t, "none")
+	})
+	if t.Failed() {
+		t.FailNow()
+	}
 
 	// 6: the key the most frequent WARN message names.
 	top := lokiVector(t, fill(t, template(t, "topk("), map[string]string{"level": "WARN", "range": "1m"}))
@@ -72,25 +114,6 @@ func TestGatedWorksheet(t *testing.T) {
 	if m == nil {
 		t.Fatalf("most frequent WARN %q names no key", top[0].Metric["msg"])
 	}
-	answers[6] = m[1]
-
-	for n := 1; n <= 6; n++ {
-		if answers[n] == "" {
-			t.Fatalf("no answer found for question %d", n)
-		}
-		out, code := unlockSh(t, n, answers[n])
-		if code != 0 {
-			t.Fatalf("unlock.sh %d: exit %d, %q", n, code, out)
-		}
-		want := "\n## " + strconv.Itoa(n+1) + ". "
-		if n == 6 {
-			want = "That's all six."
-		}
-		if !strings.Contains(out, want) {
-			t.Fatalf("unlock.sh %d printed %q, want it to contain %q", n, out, want)
-		}
-		if n == 4 && !strings.Contains(out, "./incident.sh C") {
-			t.Fatalf("unlock.sh 4 printed %q, want question 5 to run mode C", out)
-		}
-	}
+	unlockNext(t, 6, m[1])
+	wantStatus(t, "none")
 }
