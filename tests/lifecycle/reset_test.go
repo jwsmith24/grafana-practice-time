@@ -14,8 +14,8 @@ import (
 // T5.3-1 to T5.3-3
 func TestReset(t *testing.T) {
 	freshStack(t)
-	// Dirty the lab: switch to C and wait for its deploy line.
-	must(t, nil, "./incident.sh", "C")
+	// Dirty the lab: switch to B and wait for its deploy line.
+	must(t, nil, "./incident.sh", "B")
 	if !eventually(30*time.Second, 2*time.Second, func() bool {
 		return len(lokiLines(t, `{service="orders"} |= "1.4.3"`, time.Now().Add(-5*time.Minute), time.Now())) > 0
 	}) {

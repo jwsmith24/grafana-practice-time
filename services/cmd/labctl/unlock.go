@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const unlockUsage = "usage: ./unlock.sh N <answer>   (N is the question you answered, 1 to %d)\n"
+const unlockUsage = "usage: ./unlock.sh N <answer>   (N is the scenario you solved, 1 to %d)\n"
 
 type question struct {
 	title string // "N. Title", as in the worksheet's headings
@@ -79,7 +79,7 @@ func unlock(args []string, ws worksheet, sw modeSwitch, stdout, stderr io.Writer
 		fmt.Fprintf(stdout, "Correct.\n\n%s\n", ws.closing)
 		return 0
 	}
-	fmt.Fprintf(stdout, "Correct. Here is question %d.\n\n## %s\n\n", n+1, next.title)
+	fmt.Fprintf(stdout, "Correct. Here is scenario %d.\n\n## %s\n\n", n+1, next.title)
 	if next.mode != "" {
 		fmt.Fprintf(stdout, "Mode %s is now running. It ends by itself after %s; to restart it, run\n./unlock.sh %d <answer> again.\n\n", next.mode, sw.Duration(), n)
 	}

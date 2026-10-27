@@ -4,7 +4,7 @@
 //	labctl A|B|C               activate a mode (restarts its timer)
 //	labctl clear               end the active mode
 //	labctl status              print the active mode
-//	labctl unlock N <answer>   check the answer to question N; print the next one
+//	labctl unlock N <answer>   check the answer to scenario N; print the next one
 //	                           and start the mode it needs (or clear the lab)
 package main
 
