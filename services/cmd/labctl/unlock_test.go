@@ -99,41 +99,40 @@ func TestUnlockThroughRun(t *testing.T) {
 	}
 }
 
-// T6.5-1 (stored answers are hashes only) and the labctl half of T6.2-1: the
-// questions come in the order warm-up, warm-up, mode A, B, C, stretch; each
-// mode question starts its own letter, and no question asks the pair to
-// switch modes themselves.
+// T6.5-1 (stored answers are hashes only) and the labctl half of T6.2-1: six
+// numbered scenarios, the last a stretch; scenarios 3 to 5 start modes B, C
+// and A, in that order, so the easiest one to read comes first; each names
+// the Grafana skill it practises, and none asks the pair to switch modes
+// themselves.
 func TestLabWorksheet(t *testing.T) {
 	hexHash := regexp.MustCompile(`^[0-9a-f]{64}$`)
-	kinds := []string{"Warm-up: ", "Warm-up: ", "Mode A", "Mode B", "Mode C", "Stretch: "}
+	modes := []string{"", "", "B", "C", "A", ""}
 	qs := labWorksheet.questions
-	if len(qs) != len(kinds) {
-		t.Fatalf("%d questions, want %d", len(qs), len(kinds))
+	if len(qs) != len(modes) {
+		t.Fatalf("%d scenarios, want %d", len(qs), len(modes))
 	}
 	for i, q := range qs {
 		if !hexHash.MatchString(q.hash) {
-			t.Errorf("question %d: stored answer %q is not a SHA-256 hex digest", i+1, q.hash)
+			t.Errorf("scenario %d: stored answer %q is not a SHA-256 hex digest", i+1, q.hash)
 		}
-		prefix := string(rune('1'+i)) + ". " + kinds[i]
-		if !strings.HasPrefix(q.title, prefix) {
-			t.Errorf("question %d is %q, want it to start with %q", i+1, q.title, prefix)
+		if prefix := string(rune('1'+i)) + ". "; !strings.HasPrefix(q.title, prefix) {
+			t.Errorf("scenario %d is %q, want it to start with %q", i+1, q.title, prefix)
 		}
 		if (i == 0) != (q.body == "") {
-			t.Errorf("question %d: body %q; only question 1 (in the worksheet) has none", i+1, q.body)
+			t.Errorf("scenario %d: body %q; only scenario 1 (in the worksheet) has none", i+1, q.body)
 		}
-		if i > 0 && !strings.Contains(q.body, "The password is ") {
-			t.Errorf("question %d does not say what its password is", i+1)
+		if i > 0 && (!strings.Contains(q.body, "The password is ") || !strings.Contains(q.body, "Grafana skill: ")) {
+			t.Errorf("scenario %d does not say what its password is and which Grafana skill it practises", i+1)
 		}
-		want, _ := strings.CutPrefix(kinds[i], "Mode ")
-		if want == kinds[i] {
-			want = ""
-		}
-		if q.mode != want {
-			t.Errorf("question %d starts mode %q, want %q", i+1, q.mode, want)
+		if q.mode != modes[i] {
+			t.Errorf("scenario %d starts mode %q, want %q", i+1, q.mode, modes[i])
 		}
 		if strings.Contains(q.body, "incident.sh") {
-			t.Errorf("question %d tells the pair to run incident.sh", i+1)
+			t.Errorf("scenario %d tells the pair to run incident.sh", i+1)
 		}
+	}
+	if !strings.HasPrefix(qs[len(qs)-1].title, "6. Stretch: ") {
+		t.Errorf("last scenario is %q, want a stretch", qs[len(qs)-1].title)
 	}
 	if labWorksheet.closing == "" {
 		t.Error("no closing message")

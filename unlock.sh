@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Unlock the worksheet's next question.
+# Unlock the worksheet's next scenario.
 #
-#   ./unlock.sh N <answer>   N is the question you answered; prints the next one
+#   ./unlock.sh N <answer>   N is the scenario you solved; prints the next one
 set -eu
 
 usage() {
-  echo "usage: $0 N <answer>   (N is the question you answered)" >&2
+  echo "usage: $0 N <answer>   (N is the scenario you solved)" >&2
   exit 2
 }
 

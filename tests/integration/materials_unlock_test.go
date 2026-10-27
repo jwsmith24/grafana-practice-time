@@ -33,8 +33,8 @@ func unlockSh(t *testing.T, n int, answer string) (string, int) {
 	return string(out), 0
 }
 
-// unlockNext runs ./unlock.sh n answer and checks that it printed question
-// n+1, or the closing message after question 6.
+// unlockNext runs ./unlock.sh n answer and checks that it printed scenario
+// n+1, or the closing message after scenario 6.
 func unlockNext(t *testing.T, n int, answer string) string {
 	t.Helper()
 	out, code := unlockSh(t, n, answer)
@@ -60,9 +60,9 @@ func wantStatus(t *testing.T, prefix string) {
 }
 
 // T6.5-4: the gated worksheet end to end. Each answer comes from the lab,
-// found the way the pair finds it, and unlocks the next question, which
+// found the way the pair finds it, and unlocks the next scenario, which
 // starts the mode it needs; the last answers put the lab back to normal and
-// print the closing message. Only question 1's field and question 4's
+// print the closing message. Only scenario 1's field and scenario 3's
 // service are written down here.
 func TestGatedWorksheet(t *testing.T) {
 	if out, code := unlockSh(t, 1, "not it"); code != 1 || !strings.Contains(out, "Not quite") {
@@ -84,20 +84,29 @@ func TestGatedWorksheet(t *testing.T) {
 		t.Fatalf("request %s: other services %v, want one", id, others)
 	}
 
-	// Answering 2 starts mode A; answering 3 moves the lab to mode B.
-	t.Run("A", func(t *testing.T) {
-		start := triggerWith(t, "A", func() { unlockNext(t, 2, others[0]) })
-		wantStatus(t, "active: A")
-		unlockNext(t, 3, chainA(t, start))
+	// Answering 2 starts mode B. Its answer, the service, is written down below.
+	t.Run("B", func(t *testing.T) {
+		triggerWith(t, "B", func() { unlockNext(t, 2, others[0]) })
 		wantStatus(t, "active: B")
 	})
 
-	// Answering 4 starts mode C (the wait for a quiet lab clears B first, so
-	// C's chain sees only its own errors); answering 5 clears it.
+	// Answering 3 starts mode C (the wait for a quiet lab clears B first, so
+	// C's chain sees only its own errors).
+	var version string
 	t.Run("C", func(t *testing.T) {
-		start := triggerWith(t, "C", func() { unlockNext(t, 4, "inventory") })
+		start := triggerWith(t, "C", func() { unlockNext(t, 3, "inventory") })
 		wantStatus(t, "active: C")
-		unlockNext(t, 5, chainC(t, start))
+		version = chainC(t, start)
+	})
+	if t.Failed() {
+		t.FailNow()
+	}
+
+	// Answering 4 starts mode A, after the same wait; answering 5 clears it.
+	t.Run("A", func(t *testing.T) {
+		start := triggerWith(t, "A", func() { unlockNext(t, 4, version) })
+		wantStatus(t, "active: A")
+		unlockNext(t, 5, chainA(t, start))
 		wantStatus(t, "none")
 	})
 	if t.Failed() {

@@ -52,15 +52,15 @@ Your job is to work out what is wrong from Grafana alone, without reading the la
 
 ## Worksheet
 
-The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet starts with question 1. Each answer is a password that unlocks the next question:
+The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet is six short scenarios, each practising a different part of Grafana, from Explore to annotations and data links. It starts with scenario 1. Each answer is a password that unlocks the next scenario:
 
 ```sh
-./unlock.sh 1 <answer>   # a right answer prints question 2, and so on
+./unlock.sh 1 <answer>   # a right answer prints scenario 2, and so on
 ```
 
-Unlocking questions 3 to 5 starts the lab's modes for you, so you don't need `./incident.sh` during the worksheet.
+Unlocking scenarios 3 to 5 starts the lab's modes for you, so you don't need `./incident.sh` during the worksheet.
 
-Stuck on a question for more than 5 minutes? Ask the facilitator.
+Stuck on a scenario for more than 5 minutes? Ask the facilitator.
 
 ## Reset
 
