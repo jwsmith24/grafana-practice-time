@@ -132,10 +132,10 @@ Then:
 ## M6 Materials: worksheet, demo script and cheat sheet
 
 **Automated:** T6.1-x, T6.2-x and T6.4-x.
-- **Static:** `tests/static/cheatsheet_test.go`, `worksheet_test.go` and `demo_test.go` (structure, techniques, LogQL only, screenshots exist, the demo runs only `./incident.sh B`). `tests/hygiene` keeps the evidence of every mode out of the cheat sheet and the worksheet, and the other modes' evidence out of the demo script.
+- **Static:** `tests/static/cheatsheet_test.go`, `worksheet_test.go` and `demo_test.go` (structure, techniques, LogQL only, screenshots exist, the demo runs only `./incident.sh A`). `tests/hygiene` keeps the evidence of every mode out of the cheat sheet and the worksheet, and the other modes' evidence out of the demo script.
 - **Integration:**
   - `materials_baseline_test.go`: T6.2-3, scenarios 1, 2 and 6 (the stretch) at baseline.
-  - `materials_demo_test.go`: T6.4-3, every demo query during mode B, in order.
+  - `materials_demo_test.go`: T6.4-3, every demo query during mode A, in order.
   - `materials_test.go`: T6.1-3, every cheat-sheet query runs. T6.1-4 (lab AC5) chains cheat-sheet queries only, each filled in from the results before it, from a mode's first signal to its root cause, for each of A, B and C.
 
 The exit tests are T6.1-4 and T6.4-3. S6.3, the answer key, is kept outside this repo.
@@ -143,7 +143,7 @@ The exit tests are T6.1-4 and T6.4-3. S6.3, the answer key, is kept outside this
 **By hand**, with the stack started as above:
 1. Print `materials/logql-cheat-sheet.md` to PDF (for example from GitHub's rendered view). It fits on one page (MT6.1-1, on #32).
 2. Read `materials/worksheet.md` (scenario 1; since S6.5, scenarios 2 to 6 are printed by `./unlock.sh`), and none of them names a cause. Paste each cheat-sheet query into Explore with the placeholders filled in, and check that each one returns data.
-3. Walk through `materials/demo-script.md` with `./incident.sh B`. Each step's query returns what the step describes, and its screenshot matches the current UI (MT6.4-2, on #35).
+3. Walk through `materials/demo-script.md` with `./incident.sh A`. Each step's query returns what the step describes, and its screenshot matches the current UI (MT6.4-2, on #35).
 4. To regenerate the screenshots after a dashboard or Grafana change, start a fresh stack (`down -v`, then `up`), wait two minutes, and run:
    ```sh
    (cd tests/e2e && npx playwright test -c capture.config.ts)   # about 1.5 min; rewrites materials/demo/*.png
@@ -154,7 +154,7 @@ The exit tests are T6.1-4 and T6.4-3. S6.3, the answer key, is kept outside this
 ## S6.5 Gated worksheet: each answer unlocks the next question
 
 **Automated:** T6.5-1 to T6.5-6, and T6.2-1 as updated.
-- **Unit:** `services/cmd/labctl/unlock_test.go`. T6.5-1 runs `labctl unlock` against a made-up question table and a fake mode switch: lenient matching, the neutral wrong-answer line and exit 1, usage and exit 2, the closing message, and the mode changes (a right answer starts the next scenario's mode or clears the lab; a wrong one or bad input changes nothing). `TestLabWorksheet` checks the real table: scenarios 1 to 6 in order, the last a stretch, scenarios 3 to 5 start modes B, C and A (easiest to read first), each names the Grafana skill it practises, none tells the pair to run `incident.sh`, and every stored answer is a 64-hex SHA-256 digest.
+- **Unit:** `services/cmd/labctl/unlock_test.go`. T6.5-1 runs `labctl unlock` against a made-up question table and a fake mode switch: lenient matching, the neutral wrong-answer line and exit 1, usage and exit 2, the closing message, and the mode changes (a right answer starts the next scenario's mode or clears the lab; a wrong one or bad input changes nothing). `TestLabWorksheet` checks the real table: scenarios 1 to 6 in order, the last a stretch, scenarios 3 to 5 start modes A, B and C, which get harder in that order, each names the Grafana skill it practises, none tells the pair to run `incident.sh`, and every stored answer is a 64-hex SHA-256 digest.
 - **Static:** `tests/static/worksheet_test.go` (T6.2-1, T6.5-3: the worksheet holds only scenario 1, the intro, the tips, how to unlock and the escape hatch, and never runs `incident.sh`), `readme_test.go` (T6.5-6), and `tests/hygiene` (T6.5-5: the worksheet's cause-word list also covers `unlock.go` and `unlock.sh`; `questions.go` gets the same list less the dashboard names its steps point at).
 - **Scripts:** `tests/scripts/unlock.bats` (T6.5-2, with a stubbed `docker`), shellcheck, and `bash -n` under `bash:3.2.57`.
 - **Integration:** `materials_unlock_test.go`, T6.5-4. It feeds each answer to `./unlock.sh`, from scenario 1 to the closing message, checks with `./incident.sh status` that each unlock started or cleared the right mode, and takes each answer from the running lab with the cheat-sheet queries (reusing the T6.1-4 chains). It sorts after `materials_test.go` and before `session_test.go`.
@@ -167,6 +167,6 @@ The exit test is T6.5-4. The answers are not in the repo: they are on the facili
 ./unlock.sh 1; echo $?            # usage on stderr, then 2
 ./unlock.sh 7 anything; echo $?   # usage on stderr, then 2
 ```
-Then, with the facilitator's answer key, run `./unlock.sh N <answer>` for N = 1 to 6. Each prints the next scenario (the sixth, the closing message) and exits 0. After answers 2, 3 and 4, `./incident.sh status` shows modes B, C and A; after answer 5 it shows `none`. A wrong answer leaves the mode alone. Try one answer in capitals, with extra spaces and in quotes: it still unlocks. Read every printed scenario: none names a cause.
+Then, with the facilitator's answer key, run `./unlock.sh N <answer>` for N = 1 to 6. Each prints the next scenario (the sixth, the closing message) and exits 0. After answers 2, 3 and 4, `./incident.sh status` shows modes A, B and C; after answer 5 it shows `none`. A wrong answer leaves the mode alone. Try one answer in capitals, with extra spaces and in quotes: it still unlocks. Read every printed scenario: none names a cause.
 
 `[M]` for the facilitator: MT6.5-1 (solo gated run in 12 minutes or less; supersedes MT6.2-1) and MT6.5-2 (the six passwords are on the answer key), both on #54.

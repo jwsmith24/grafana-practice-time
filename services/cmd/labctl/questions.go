@@ -29,7 +29,7 @@ The password is the name of that other service.`,
 		},
 		{
 			title: "3. The shop feels sluggish",
-			mode:  "B",
+			mode:  "A",
 			body: `Customers say checkout takes forever, and some orders fail. Someone needs
 to work out which service is holding everyone up.
 
@@ -47,7 +47,7 @@ The password is the name of the service whose line climbs highest.`,
 		},
 		{
 			title: "4. Did something just change?",
-			mode:  "C",
+			mode:  "B",
 			body: `Orders fail again, out of nowhere. When that happens, a good first
 question is "did someone just ship a change?" Grafana can mark those
 moments on a dashboard, as annotations.
@@ -63,7 +63,7 @@ The password is the version the marker shows.`,
 		},
 		{
 			title: "5. One unlucky product",
-			mode:  "A",
+			mode:  "C",
 			body: `Orders fail again, but support says only some customers are affected.
 Find out what the failing orders have in common.
 

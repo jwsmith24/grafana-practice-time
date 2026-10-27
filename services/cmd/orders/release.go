@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// nextVersion is the release orders runs in mode C.
+// nextVersion is the release orders runs in mode B.
 const nextVersion = "1.4.3"
 
 // releaseCheckInterval is how often orders checks which release to run.
@@ -36,7 +36,7 @@ func (r *release) Version() string { return r.version.Load().(string) }
 // serves.
 func (r *release) sync() {
 	want := version
-	if r.mode != nil && r.mode() == "C" {
+	if r.mode != nil && r.mode() == "B" {
 		want = nextVersion
 	}
 	if want == r.Version() {

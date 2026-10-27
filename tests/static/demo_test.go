@@ -53,18 +53,18 @@ func TestDemoScriptStructure(t *testing.T) {
 }
 
 // T6.4-2
-func TestDemoScriptUsesOnlyB(t *testing.T) {
+func TestDemoScriptUsesOnlyA(t *testing.T) {
 	text := readFile(t, demoPath)
 	ms := incidentCmd.FindAllStringSubmatch(text, -1)
 	if len(ms) == 0 {
-		t.Fatal("the demo never runs ./incident.sh B")
+		t.Fatal("the demo never runs ./incident.sh A")
 	}
 	for _, m := range ms {
-		if m[1] != "B" && m[1] != "clear" && m[1] != "status" {
+		if m[1] != "A" && m[1] != "clear" && m[1] != "status" {
 			t.Errorf("the demo runs ./incident.sh %s", m[1])
 		}
 	}
-	if m := regexp.MustCompile(`\b(?i:modes?|incidents?) [AC]\b|\b[AC] (?i:mode|incident)\b`).FindString(text); m != "" {
+	if m := regexp.MustCompile(`\b(?i:modes?|incidents?) [BC]\b|\b[BC] (?i:mode|incident)\b`).FindString(text); m != "" {
 		t.Errorf("the demo mentions %q", m)
 	}
 }

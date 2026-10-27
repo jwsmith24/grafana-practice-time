@@ -1,10 +1,10 @@
 # Live demo: one problem, start to finish (15 minutes)
 
-The demo uses mode B only. Attendees meet the other modes for the first time in the hands-on part, so don't show or mention them.
+The demo uses mode A only. Attendees meet the other modes for the first time in the hands-on part, so don't show or mention them.
 
 **Before the session:** start the lab, run `./check.sh`, and open **Lab Overview** (last 15 minutes, refresh every 5 s) in one tab and **Explore** (Loki) in another. Paste each query below from this file. If the live lab misbehaves, show the screenshot under the step instead.
 
-Mode B ends by itself after 3 minutes, and its logs stay in Loki. Before each Explore step, set the time picker to start a minute before you ran `./incident.sh B`. If you need it running again, run `./incident.sh B` again.
+Mode A ends by itself after 3 minutes, and its logs stay in Loki. Before each Explore step, set the time picker to start a minute before you ran `./incident.sh A`. If you need it running again, run `./incident.sh A` again.
 
 ## Step 1. The healthy lab (2 min)
 
@@ -18,13 +18,13 @@ Show the dashboard: request rate, 5xx rate, p95 latency, error log volume, and r
 
 ## Step 2. Break it (2 min)
 
-Run `./incident.sh B` in a terminal. Within 30 s, on the dashboard, orders' 5xx rate rises and inventory's p95 latency climbs past 2 s. The panel behind the latency line runs this PromQL. Ask the room: which service is broken?
+Run `./incident.sh A` in a terminal. Within 30 s, on the dashboard, orders' 5xx rate rises and inventory's p95 latency climbs past 2 s. The panel behind the latency line runs this PromQL. Ask the room: which service is broken?
 
 ```promql
 histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[1m])))
 ```
 
-![Step 2: Lab Overview while mode B runs](demo/step-2.png)
+![Step 2: Lab Overview while mode A runs](demo/step-2.png)
 
 ## Step 3. Who is logging errors? (1 min)
 

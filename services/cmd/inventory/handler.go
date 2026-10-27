@@ -29,7 +29,7 @@ type store struct {
 
 // lookupDelay is how long a stock lookup takes in the given mode.
 func lookupDelay(mode string) time.Duration {
-	if mode != "B" {
+	if mode != "A" {
 		return 0
 	}
 	return 2*time.Second + rand.N(2*time.Second)
@@ -54,7 +54,7 @@ func (s store) stock(id string) (int, error) {
 // record returns the stored stock record for id.
 func record(id, mode string) string {
 	n := strconv.Itoa(stockFor(id))
-	if mode == "A" && id == "SKU-1042" {
+	if mode == "C" && id == "SKU-1042" {
 		return n + ".0"
 	}
 	return n

@@ -236,15 +236,15 @@ func contains(list []string, s string) bool {
 // T6.1-4 (lab AC5): each mode's root cause, found by chaining cheat-sheet
 // queries only, each filled in from the results before it. The queries cover
 // the time since the switch, so they still work after a short mode clears.
-func TestCheatSheetFindsA(t *testing.T) {
-	if item := chainA(t, triggerMode(t, "A")); item != "SKU-1042" {
-		t.Fatalf("mode A chain found item_id %s, want SKU-1042", item)
+func TestCheatSheetFindsC(t *testing.T) {
+	if item := chainC(t, triggerMode(t, "C")); item != "SKU-1042" {
+		t.Fatalf("mode C chain found item_id %s, want SKU-1042", item)
 	}
 }
 
-// chainA runs mode A's chain on the mode started at start, and returns the
+// chainC runs mode C's chain on the mode started at start, and returns the
 // one item_id the errors share.
-func chainA(t *testing.T, start time.Time) string {
+func chainC(t *testing.T, start time.Time) string {
 	t.Helper()
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
@@ -267,8 +267,8 @@ func chainA(t *testing.T, start time.Time) string {
 	return res[0].Metric[field]
 }
 
-func TestCheatSheetFindsB(t *testing.T) {
-	start := triggerMode(t, "B")
+func TestCheatSheetFindsA(t *testing.T) {
+	start := triggerMode(t, "A")
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
 	if s := erroringServices(t); !contains(s, "orders") {
@@ -298,15 +298,15 @@ func TestCheatSheetFindsB(t *testing.T) {
 	}
 }
 
-func TestCheatSheetFindsC(t *testing.T) {
-	if v := chainC(t, triggerMode(t, "C")); v != "1.4.3" {
-		t.Fatalf("mode C chain found version %s, want 1.4.3", v)
+func TestCheatSheetFindsB(t *testing.T) {
+	if v := chainB(t, triggerMode(t, "B")); v != "1.4.3" {
+		t.Fatalf("mode B chain found version %s, want 1.4.3", v)
 	}
 }
 
-// chainC runs mode C's chain on the mode started at start, and returns the
+// chainB runs mode B's chain on the mode started at start, and returns the
 // version of the first deploy line since then.
-func chainC(t *testing.T, start time.Time) string {
+func chainB(t *testing.T, start time.Time) string {
 	t.Helper()
 	selector := template(t, `{service="<service>", level="<level>"}`)
 
