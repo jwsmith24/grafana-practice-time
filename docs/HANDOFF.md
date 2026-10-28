@@ -120,6 +120,7 @@ check.sh                  bash 3.2 + curl + docker; PASS/FAIL per check with a f
   - **No log line or script output may say "incident" or hint at a cause.**
 - **Images:** pinned exact versions; exactly 7 containers. The `${IMAGE_REGISTRY}` prefix and `.env.example` come in S5.1.
 - **Scripts:** macOS bash 3.2, and they must pass shellcheck.
+- **Don't test copy.** The human asked (2026-10-28) for no tests that check wording: README text, the worksheet's prose, `unlock`'s messages, the closing message. Test behaviour instead (answers unlock, modes start and clear, commands and links work) and keep the cause-word leak checks.
 
 ## Environment notes (gotchas that cost time)
 
