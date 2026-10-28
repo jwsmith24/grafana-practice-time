@@ -81,7 +81,7 @@ func unlock(args []string, ws worksheet, sw modeSwitch, stdout, stderr io.Writer
 	}
 	fmt.Fprintf(stdout, "Correct. Here is scenario %d.\n\n## %s\n\n", n+1, next.title)
 	if next.mode != "" {
-		fmt.Fprintf(stdout, "Mode %s is now running. It ends by itself after %s; to restart it, run\n./unlock.sh %d <answer> again.\n\n", next.mode, sw.Duration(), n)
+		fmt.Fprintf(stdout, "Something in the lab has just broken (mode %s). It recovers by itself after %s;\nto break it again, run ./unlock.sh %d <answer> again.\n\n", next.mode, sw.Duration(), n)
 	}
 	fmt.Fprintf(stdout, "%s\n\nWhen you have the password: ./unlock.sh %d <answer>\n", next.body, n+1)
 	return 0
