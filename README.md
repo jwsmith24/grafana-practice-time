@@ -1,6 +1,6 @@
 # Grafana Troubleshooting Lab
 
-A small shop runs on your laptop: an `orders` service, an `inventory` service, and a load generator that places orders all day. Grafana, Loki, Prometheus and Alloy watch it. During the session you switch the lab into a broken mode and use Grafana to find out what went wrong.
+A small shop runs on your laptop: an `orders` service, an `inventory` service, and a load generator that places orders all day. Grafana, Loki, Prometheus and Alloy watch it. During the session the worksheet switches the lab into broken modes, and you use Grafana to find out what went wrong.
 
 ## Prerequisites
 
@@ -40,13 +40,14 @@ When `./check.sh` prints `All checks passed`, open http://localhost:3300. No log
 
 ## Incidents
 
-The facilitator will tell you which mode to start. Each mode ends by itself after 3 minutes.
+You don't start the broken modes yourself: unlocking worksheet scenarios 3 to 5 starts them (see Worksheet below). Each mode ends by itself after 3 minutes. To check on the lab or end a mode early:
 
 ```sh
-./incident.sh A        # start mode A (or B, or C)
 ./incident.sh status   # show which mode is running and how long is left
 ./incident.sh clear    # end it now
 ```
+
+`./incident.sh A` (or `B`, or `C`) starts a mode by hand. The facilitator uses it for the live demo; you won't need it.
 
 Your job is to work out what is wrong from Grafana alone, without reading the lab's source code.
 
