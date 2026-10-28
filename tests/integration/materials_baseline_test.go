@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// This file sorts before materials_test.go, whose mode B chain leaves WARN
+// This file sorts before materials_test.go, whose mode C chain leaves WARN
 // lines other than the red herring.
 
 // T6.2-3: the warm-ups and the stretch question, answered at baseline with

@@ -81,7 +81,7 @@ var questionWords = []string{"sku", "1042", "token", "auth", "credential", "reje
 
 // T6.2-2, and the same check for the cheat sheet, and (T6.5-5) for the
 // worksheet's other questions and unlock messages. The demo script walks
-// through mode A in the open, so it is only kept clear of the other modes'
+// through mode B in the open, so it is only kept clear of the other modes'
 // evidence.
 func TestMaterialsRevealNothing(t *testing.T) {
 	files := map[string][]string{
@@ -90,7 +90,6 @@ func TestMaterialsRevealNothing(t *testing.T) {
 		"services/cmd/labctl/questions.go": questionWords,
 		"services/cmd/labctl/unlock.go":    causeWords,
 		"unlock.sh":                        causeWords,
-		"materials/demo-script.md":         {"sku", "1042", "token", "auth", "credential", "rejected", "deploy", "1.4.3"},
 	}
 	for f, words := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))

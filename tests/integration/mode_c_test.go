@@ -3,12 +3,48 @@
 package integration
 
 import (
-	"fmt"
+	"bytes"
+	"strconv"
 	"testing"
 	"time"
 )
 
-// T4.3-3 to T4.3-5
+// lokiEntry is one log line with its timestamp.
+type lokiEntry struct {
+	ts      time.Time
+	service string
+	line    string
+}
+
+// oldest returns the earliest entry in streams.
+func oldest(t *testing.T, streams []lokiStream) (lokiEntry, bool) {
+	t.Helper()
+	var first lokiEntry
+	found := false
+	for _, s := range streams {
+		for _, v := range s.Values {
+			ns, err := strconv.ParseInt(v[0], 10, 64)
+			if err != nil {
+				t.Fatalf("timestamp %q: %v", v[0], err)
+			}
+			ts := time.Unix(0, ns)
+			if !found || ts.Before(first.ts) {
+				first, found = lokiEntry{ts: ts, service: s.Stream["service"], line: v[1]}, true
+			}
+		}
+	}
+	return first, found
+}
+
+// deployAt returns when orders logged a deploy of version since start.
+func deployAt(t *testing.T, version string, start time.Time) (time.Time, bool) {
+	t.Helper()
+	q := `{service="orders"} | json | event="deploy" | version="` + version + `"`
+	e, ok := oldest(t, lokiQueryRange(t, q, start, time.Now()))
+	return e.ts, ok
+}
+
+// T4.4-4 to T4.4-6
 func TestModeC(t *testing.T) {
 	d := labDuration(t)
 	incidentSh(t, "clear")
@@ -19,45 +55,62 @@ func TestModeC(t *testing.T) {
 	incidentSh(t, "C")
 	expires := start.Add(d)
 
-	// T4.3-3
-	t.Run("error-rate panel shows it within 30s", func(t *testing.T) {
+	// T4.4-4
+	t.Run("deploy annotation and error rate within 30s", func(t *testing.T) {
+		anno := deployAnnotation(t)
+		var seen bool
 		var v float64
 		for time.Since(start) <= 30*time.Second {
-			if v = orders5xx(t); v > 0 {
-				t.Logf("orders POST /orders 5xx = %.3f/s after %s", v, time.Since(start).Round(time.Second))
+			seen = seen || bytes.Contains(panelRaw(t, anno, 5*time.Minute), []byte(`\"version\":\"1.4.3\"`))
+			if v = orders5xx(t); seen && v > 0 {
+				t.Logf("annotation and 5xx = %.3f/s after %s", v, time.Since(start).Round(time.Second))
 				return
 			}
 			time.Sleep(5 * time.Second)
 		}
-		t.Fatalf("orders POST /orders 5xx = %v 30s after the switch, want > 0", v)
+		t.Fatalf("30s after the switch: 1.4.3 annotation %v, orders 5xx %v", seen, v)
 	})
 
-	// T4.3-4: the window starts at the switch, as an attendee's would.
-	t.Run("errors isolate one item", func(t *testing.T) {
-		secs := int(time.Since(start).Seconds()) + 1
-		q := fmt.Sprintf(`sum by (item_id) (count_over_time({service="orders", level="ERROR"} | json [%ds]))`, secs)
-		var res []lokiSample
-		eventually(t, 15*time.Second, func() bool {
-			res = lokiVector(t, q)
-			return len(res) > 0
-		})
-		if len(res) != 1 || res[0].Metric["item_id"] != "SKU-1042" {
-			t.Fatalf("%s: got %v, want one series with item_id SKU-1042", q, res)
+	// T4.4-5
+	t.Run("first error after the deploy leads to inventory", func(t *testing.T) {
+		deployed, ok := deployAt(t, "1.4.3", start.Add(-time.Second))
+		if !ok {
+			t.Fatal("no 1.4.3 deploy line")
+		}
+		first, ok := oldest(t, lokiQueryRange(t, `{level="ERROR"}`, deployed, time.Now()))
+		if !ok {
+			t.Fatal("no ERROR line after the deploy")
+		}
+		if first.service != "orders" || !bytes.Contains([]byte(first.line), []byte("inventory rejected credentials")) {
+			t.Fatalf("first ERROR after the deploy is %s: %s", first.service, first.line)
+		}
+		warn, ok := oldest(t, lokiQueryRange(t, `{service="inventory", level="WARN"} |= "auth token rejected"`, deployed, time.Now()))
+		if !ok {
+			t.Fatal("no auth token rejected WARN after the deploy")
+		}
+		if gap := warn.ts.Sub(deployed); gap < 0 || gap > 5*time.Second {
+			t.Fatalf("auth token rejected starts %s after the deploy, want 0-5s", gap)
 		}
 	})
 
-	// T4.3-5: allow 2 s for the state poll and in-flight requests.
-	t.Run("clears", func(t *testing.T) {
-		from, to := expires.Add(2*time.Second), expires.Add(17*time.Second)
-		time.Sleep(time.Until(to.Add(5 * time.Second)))
+	// T4.4-6
+	t.Run("clears with a rollback", func(t *testing.T) {
+		time.Sleep(time.Until(expires.Add(2 * time.Second)))
 		if out := incidentSh(t, "status"); out != "none" {
 			t.Fatalf("status after expiry: %q", out)
 		}
-		if n := countLines(lokiQueryRange(t, `{service=~"orders|inventory", level="ERROR"}`, from, to)); n != 0 {
-			t.Fatalf("%d ERROR lines 2-17s after expiry", n)
+		if !eventually(t, 10*time.Second, func() bool { return postOrder(t, "SKU-1001") == 201 }) {
+			t.Fatal("orders not returning 201 10s after expiry")
 		}
-		if code := postOrder(t, "SKU-1042"); code != 201 {
-			t.Fatalf("SKU-1042 order after expiry: status %d, want 201", code)
+		bad, _ := deployAt(t, "1.4.3", start.Add(-time.Second))
+		var back time.Time
+		if !eventually(t, 10*time.Second, func() bool {
+			var ok bool
+			back, ok = deployAt(t, "1.4.2", bad)
+			return ok
+		}) {
+			t.Fatal("no 1.4.2 deploy line after the 1.4.3 one")
 		}
+		t.Logf("1.4.2 rollback %s after 1.4.3", back.Sub(bad).Round(time.Millisecond))
 	})
 }

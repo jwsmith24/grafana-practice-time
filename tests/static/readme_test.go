@@ -37,13 +37,13 @@ func readmeSections(t *testing.T) map[string]string {
 // T5.6-1
 func TestReadmeSections(t *testing.T) {
 	s := readmeSections(t)
-	for _, h := range []string{"Prerequisites", "When to set up", "Setup", "Check your lab", "Incidents", "Reset", "Registry fallback", "Troubleshooting"} {
+	for _, h := range []string{"Prerequisites", "Setup", "Check your lab", "Worksheet", "Reset", "Troubleshooting"} {
 		if _, ok := s[h]; !ok {
 			t.Errorf("README has no ## %s section", h)
 		}
 	}
 	pre := s["Prerequisites"]
-	for _, w := range []string{"Docker Desktop", "2 GB", "3 GB", "Git", "Apple Silicon", "Intel"} {
+	for _, w := range []string{"Docker Desktop", "2 GB", "3 GB", "Git"} {
 		if !strings.Contains(pre, w) {
 			t.Errorf("Prerequisites does not mention %q", w)
 		}
@@ -59,27 +59,10 @@ func TestReadmeSections(t *testing.T) {
 // T5.6-2
 func TestReadmeCommands(t *testing.T) {
 	readme := readFile(t, "../../README.md")
-	usage := regexp.MustCompile(`usage: \$0 ([A-Za-z|]+)`).FindStringSubmatch(readFile(t, "../../incident.sh"))
-	if usage == nil {
-		t.Fatal("no usage line in incident.sh")
-	}
-	accepted := strings.Split(usage[1], "|")
-	fences := regexp.MustCompile("(?s)```sh\n(.*?)```").FindAllStringSubmatch(readme, -1)
-	found := 0
-	for _, f := range fences {
-		for _, m := range regexp.MustCompile(`\./incident\.sh (\S+)`).FindAllStringSubmatch(f[1], -1) {
-			found++
-			ok := false
-			for _, a := range accepted {
-				ok = ok || a == m[1]
-			}
-			if !ok {
-				t.Errorf("README runs ./incident.sh %s; the script accepts %v", m[1], accepted)
-			}
+	for _, f := range regexp.MustCompile("(?s)```sh\n(.*?)```").FindAllStringSubmatch(readme, -1) {
+		if strings.Contains(f[1], "./incident.sh") {
+			t.Error("README runs ./incident.sh; attendees start modes with ./unlock.sh")
 		}
-	}
-	if found == 0 {
-		t.Error("README shows no ./incident.sh commands")
 	}
 	port := envExample(t)["GRAFANA_PORT"]
 	for _, m := range regexp.MustCompile(`localhost:(\d+)`).FindAllStringSubmatch(readme, -1) {
@@ -87,14 +70,30 @@ func TestReadmeCommands(t *testing.T) {
 			t.Errorf("README uses localhost:%s, but .env.example has GRAFANA_PORT=%s", m[1], port)
 		}
 	}
+	for _, m := range regexp.MustCompile(`\]\(#([^)]+)\)`).FindAllStringSubmatch(readme, -1) {
+		if !hasAnchor(t, m[1]) {
+			t.Errorf("README links to #%s, but has no such section", m[1])
+		}
+	}
+}
+
+// hasAnchor reports whether a README ## section has the given GitHub anchor.
+func hasAnchor(t *testing.T, anchor string) bool {
+	t.Helper()
+	for h := range readmeSections(t) {
+		if strings.ReplaceAll(strings.ToLower(h), " ", "-") == anchor {
+			return true
+		}
+	}
+	return false
 }
 
 // T5.6-3: the same words T4.1-5 keeps out of incident.sh's output.
-func TestReadmeIncidentsRevealNothing(t *testing.T) {
-	sec := strings.ToLower(readmeSections(t)["Incidents"])
+func TestReadmeRevealsNothing(t *testing.T) {
+	readme := strings.ToLower(readFile(t, "../../README.md"))
 	for _, w := range []string{"sku", "latency", "slow", "token", "auth", "deploy", "1.4.3"} {
-		if strings.Contains(sec, w) {
-			t.Errorf("the Incidents section mentions %q", w)
+		if strings.Contains(readme, w) {
+			t.Errorf("README mentions %q", w)
 		}
 	}
 }
@@ -122,13 +121,7 @@ func TestReadmeTroubleshooting(t *testing.T) {
 }
 
 // T5.6-6
-func TestReadmeTiming(t *testing.T) {
-	when := readmeSections(t)["When to set up"]
-	for _, w := range []string{"at least one day before the session", "message the facilitator"} {
-		if !strings.Contains(when, w) {
-			t.Errorf("When to set up does not say %q", w)
-		}
-	}
+func TestCheckFooter(t *testing.T) {
 	if !strings.Contains(readFile(t, "../../check.sh"), `echo "If it still fails, message the facilitator and include this output."`) {
 		t.Error("check.sh's failure footer does not tell attendees to message the facilitator")
 	}

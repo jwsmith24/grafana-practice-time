@@ -1,2 +1,6 @@
 .idea
 .env
+# Facilitator-only material stays out of this public repo.
+materials/demo-script.md
+materials/demo/
+materials/answer-key*

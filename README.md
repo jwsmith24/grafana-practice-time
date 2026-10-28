@@ -31,7 +31,6 @@ When `./check.sh` prints `All checks passed`, open http://localhost:3300. No log
 
 `check.sh` checks that Docker and all seven containers are running, that Grafana, Loki and Prometheus answer, that logs are arriving from every service, and that Prometheus can scrape the services. It prints one `PASS` or `FAIL` line per check, and a fix under each `FAIL`. It exits 0 only when every check passes. Run it again after any fix.
 
-
 ## Worksheet
 
 The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet is six short scenarios, each practising a different part of Grafana, from Explore to annotations and data links. It starts with scenario 1. Each answer is a password that unlocks the next scenario:
@@ -85,4 +84,4 @@ Run `docker compose up -d <service>`, then check `docker compose logs <service>`
 Other problems:
 
 - **Low memory.** If containers keep restarting, or Docker Desktop reports low memory, open Docker Desktop's **Settings → Resources** and give it at least 4 GB of memory. Then close other heavy apps and run `docker compose up -d`.
-- **Image pulls fail** (`pull access denied`, `toomanyrequests`, or timeouts). Wait a few minutes and run `docker compose up -d` again. If it keeps failing, ask the facilitator for a registry and follow [Registry fallback](#registry-fallback).
+- **Image pulls fail** (`pull access denied`, `toomanyrequests`, or timeouts). Wait a few minutes and run `docker compose up -d` again. If it keeps failing, ask the facilitator for a registry, set it in `.env` as `IMAGE_REGISTRY=<registry>`, and run `docker compose pull` and then `docker compose up -d --build`. Leave the image tags in `.env` as they are.

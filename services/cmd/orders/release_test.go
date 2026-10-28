@@ -52,7 +52,7 @@ func TestReleaseSwitch(t *testing.T) {
 		t.Fatalf("token %q before the switch", got)
 	}
 
-	mode = "B"
+	mode = "C"
 	rel.sync()
 	rel.sync()
 	if got := deployVersions(t, &logs); len(got) != 1 || got[0] != "1.4.3" {
