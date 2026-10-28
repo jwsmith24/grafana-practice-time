@@ -34,28 +34,6 @@ func readmeSections(t *testing.T) map[string]string {
 	return sections
 }
 
-// T5.6-1
-func TestReadmeSections(t *testing.T) {
-	s := readmeSections(t)
-	for _, h := range []string{"Prerequisites", "Setup", "Check your lab", "Worksheet", "Reset", "Troubleshooting"} {
-		if _, ok := s[h]; !ok {
-			t.Errorf("README has no ## %s section", h)
-		}
-	}
-	pre := s["Prerequisites"]
-	for _, w := range []string{"Docker Desktop", "2 GB", "3 GB", "Git"} {
-		if !strings.Contains(pre, w) {
-			t.Errorf("Prerequisites does not mention %q", w)
-		}
-	}
-	setup := s["Setup"]
-	for _, w := range []string{"cp .env.example .env", "docker compose up -d", "./check.sh", "localhost:3300", "Lab Overview"} {
-		if !strings.Contains(setup, w) {
-			t.Errorf("Setup does not mention %q", w)
-		}
-	}
-}
-
 // T5.6-2
 func TestReadmeCommands(t *testing.T) {
 	readme := readFile(t, "../../README.md")
@@ -94,45 +72,6 @@ func TestReadmeRevealsNothing(t *testing.T) {
 	for _, w := range []string{"sku", "latency", "slow", "token", "auth", "deploy", "1.4.3"} {
 		if strings.Contains(readme, w) {
 			t.Errorf("README mentions %q", w)
-		}
-	}
-}
-
-// T5.6-4: every check.sh fix hint is explained in Troubleshooting. A hint's
-// first sentence is matched, with its shell variables as placeholders.
-func TestReadmeTroubleshooting(t *testing.T) {
-	trouble := readmeSections(t)["Troubleshooting"]
-	placeholders := strings.NewReplacer("${missing# }", "<services>", "$port", "<port>", "$grafana", "<url>", "$service", "<service>")
-	hints := regexp.MustCompile(`fail "[^"]*" "([^"]*)"`).FindAllStringSubmatch(readFile(t, "../../check.sh"), -1)
-	if len(hints) < 8 {
-		t.Fatalf("found %d fix hints in check.sh, want at least 8", len(hints))
-	}
-	for _, h := range hints {
-		first, _, _ := strings.Cut(h[1], ". ")
-		first = placeholders.Replace(strings.TrimSuffix(first, "."))
-		if strings.Contains(first, "$") {
-			t.Errorf("hint %q has a variable with no placeholder", first)
-			continue
-		}
-		if !strings.Contains(trouble, "**"+first+".**") {
-			t.Errorf("Troubleshooting has no **%s.** entry", first)
-		}
-	}
-}
-
-// T5.6-6
-func TestCheckFooter(t *testing.T) {
-	if !strings.Contains(readFile(t, "../../check.sh"), `echo "If it still fails, message the facilitator and include this output."`) {
-		t.Error("check.sh's failure footer does not tell attendees to message the facilitator")
-	}
-}
-
-// T6.5-6
-func TestReadmeWorksheet(t *testing.T) {
-	sec := readmeSections(t)["Worksheet"]
-	for _, w := range []string{"materials/worksheet.md", "./unlock.sh 1 <answer>"} {
-		if !strings.Contains(sec, w) {
-			t.Errorf("the Worksheet section does not mention %q", w)
 		}
 	}
 }

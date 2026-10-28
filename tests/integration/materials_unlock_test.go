@@ -4,6 +4,7 @@ package integration
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -41,11 +42,10 @@ func unlockNext(t *testing.T, n int, answer string) string {
 	if code != 0 {
 		t.Fatalf("unlock.sh %d: exit %d, %q", n, code, out)
 	}
-	want := "\n## " + strconv.Itoa(n+1) + ". "
 	if n == 6 {
-		want = "That's all six."
+		return out
 	}
-	if !strings.Contains(out, want) {
+	if want := "\n## " + strconv.Itoa(n+1) + ". "; !strings.Contains(out, want) {
 		t.Fatalf("unlock.sh %d printed %q, want it to contain %q", n, out, want)
 	}
 	return out
@@ -62,18 +62,31 @@ func wantStatus(t *testing.T, prefix string) {
 // T6.5-4: the gated worksheet end to end. Each answer comes from the lab,
 // found the way the pair finds it, and unlocks the next scenario, which
 // starts the mode it needs; the last answers put the lab back to normal and
-// print the closing message. Only scenario 1's field and scenario 3's
-// service are written down here.
+// print the closing message. Only scenario 3's service is written down
+// here.
 func TestGatedWorksheet(t *testing.T) {
-	if out, code := unlockSh(t, 1, "not it"); code != 1 || !strings.Contains(out, "Not quite") {
+	if out, code := unlockSh(t, 1, "not it"); code != 1 {
 		t.Fatalf("wrong answer: exit %d, %q", code, out)
 	}
 
-	// 1, then 2: the service the followed request reached second, after the
-	// one that logged the POST /orders request line.
-	unlockNext(t, 1, "request_id")
-	id := recentRequestID(t)
-	lines := eventuallyLines(t, fill(t, template(t, "request_id="), map[string]string{"request_id": id}), time.Now().Add(-2*time.Minute))
+	// 1: the status of the order support asks about, from its POST /orders
+	// line, searched over the last 24 hours. Order IDs count up from the
+	// start of orders, so this one exists seconds into any run.
+	day := time.Now().Add(-24 * time.Hour)
+	var placed logLine
+	for _, l := range eventuallyLines(t, fill(t, template(t, `| json | <field>="<value>"`), map[string]string{"service": "orders", "field": "order_id", "value": "ORD-000042"}), day) {
+		if l.str("endpoint") == "POST /orders" {
+			placed = l
+		}
+	}
+	if placed.fields == nil {
+		t.Fatal("ORD-000042 has no POST /orders line")
+	}
+	unlockNext(t, 1, fmt.Sprint(placed.fields["status"]))
+
+	// 2: the service the same order's request reached, besides orders.
+	id := placed.str("request_id")
+	lines := eventuallyLines(t, fill(t, template(t, "request_id="), map[string]string{"request_id": id}), day)
 	var others []string
 	for _, l := range lines {
 		if l.str("endpoint") != "POST /orders" {

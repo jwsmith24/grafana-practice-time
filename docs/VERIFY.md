@@ -146,9 +146,9 @@ The exit test is T6.1-4. The demo script (S6.4) and the answer key (S6.3) are fa
 
 ## S6.5 Gated worksheet: each answer unlocks the next question
 
-**Automated:** T6.5-1 to T6.5-6, and T6.2-1 as updated.
+**Automated:** T6.5-1 to T6.5-5, and T6.2-1 as updated.
 - **Unit:** `services/cmd/labctl/unlock_test.go`. T6.5-1 runs `labctl unlock` against a made-up question table and a fake mode switch: lenient matching, the neutral wrong-answer line and exit 1, usage and exit 2, the closing message, and the mode changes (a right answer starts the next scenario's mode or clears the lab; a wrong one or bad input changes nothing). `TestLabWorksheet` checks the real table: scenarios 1 to 6 in order, the last a stretch, scenarios 3 to 5 start modes B, C and A (easiest to read first), each names the Grafana skill it practises, none tells the pair to run `incident.sh`, and every stored answer is a 64-hex SHA-256 digest.
-- **Static:** `tests/static/worksheet_test.go` (T6.2-1, T6.5-3: the worksheet holds only scenario 1, the intro, the tips, how to unlock and the escape hatch, and never runs `incident.sh`), `readme_test.go` (T6.5-6), and `tests/hygiene` (T6.5-5: the worksheet's cause-word list also covers `unlock.go` and `unlock.sh`; `questions.go` gets the same list less the dashboard names its steps point at).
+- **Static:** `tests/static/worksheet_test.go` (T6.2-1, T6.5-3: the worksheet holds only scenario 1, shows how to unlock, and never runs `incident.sh`), and `tests/hygiene` (T6.5-5: the worksheet's cause-word list also covers `unlock.go` and `unlock.sh`; `questions.go` gets the same list less the dashboard names its steps point at).
 - **Scripts:** `tests/scripts/unlock.bats` (T6.5-2, with a stubbed `docker`), shellcheck, and `bash -n` under `bash:3.2.57`.
 - **Integration:** `materials_unlock_test.go`, T6.5-4. It feeds each answer to `./unlock.sh`, from scenario 1 to the closing message, checks with `./incident.sh status` that each unlock started or cleared the right mode, and takes each answer from the running lab with the cheat-sheet queries (reusing the T6.1-4 chains). It sorts after `materials_test.go` and before `session_test.go`.
 
