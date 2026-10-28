@@ -22,6 +22,16 @@ func TestReset(t *testing.T) {
 		t.Fatal("no 1.4.3 deploy line before the reset")
 	}
 
+	// And the worksheet progress, as if a pair had reached scenario 3.
+	progress := filepath.Join(t.TempDir(), "progress.json")
+	if err := os.WriteFile(progress, []byte(`{"unlocked":3}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	compose(t, "cp", progress, "orders:/var/lib/lab/progress.json")
+	if out := must(t, nil, "./incident.sh", "status"); !strings.Contains(out, "progress: scenario 3 of 6 unlocked") {
+		t.Fatalf("status before the reset: %q", out)
+	}
+
 	reset := time.Now()
 	compose(t, "down", "-v")
 	compose(t, "up", "-d", "--wait")
@@ -32,7 +42,7 @@ func TestReset(t *testing.T) {
 	}
 
 	// T5.3-2
-	if out := strings.TrimSpace(must(t, nil, "./incident.sh", "status")); out != "none" {
+	if out := strings.TrimSpace(must(t, nil, "./incident.sh", "status")); out != "none\nprogress: scenario 1 of 6 unlocked" {
 		t.Errorf("status after reset: %q", out)
 	}
 	deploys := lokiLines(t, `{service="orders"} | json | event="deploy"`, reset.Add(-time.Hour), time.Now())

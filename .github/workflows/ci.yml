@@ -51,8 +51,8 @@ jobs:
       - name: Script checks
         run: |
           sudo apt-get install -y -q bats shellcheck >/dev/null
-          shellcheck incident.sh check.sh unlock.sh
-          docker run --rm -v "$PWD:/w:ro" -w /w bash:3.2.57 bash -n check.sh incident.sh unlock.sh
+          shellcheck incident.sh check.sh unlock.sh hint.sh
+          docker run --rm -v "$PWD:/w:ro" -w /w bash:3.2.57 bash -n check.sh incident.sh unlock.sh hint.sh
           bats tests/scripts
 
       - name: Validate compose

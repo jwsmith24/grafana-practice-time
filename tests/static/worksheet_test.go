@@ -47,12 +47,15 @@ func TestWorksheetStructure(t *testing.T) {
 	}
 }
 
-// T6.5-3: the worksheet shows how to unlock the next scenario, and never
-// runs incident.sh: unlocking does.
+// T6.5-3: the worksheet shows how to unlock the next scenario and how to get
+// a hint, and never runs incident.sh: unlocking does.
 func TestWorksheetGated(t *testing.T) {
 	ws := readFile(t, worksheetPath)
 	if !strings.Contains(ws, "./unlock.sh 1 <answer>") {
 		t.Error("worksheet does not show how to unlock scenario 2")
+	}
+	if !strings.Contains(ws, "./hint.sh N") {
+		t.Error("worksheet does not show how to get a hint")
 	}
 	if m := incidentCmd.FindString(ws); m != "" {
 		t.Errorf("worksheet runs %q; ./unlock.sh starts and clears the modes", m)

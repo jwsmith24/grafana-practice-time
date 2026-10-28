@@ -45,7 +45,7 @@ func unlockNext(t *testing.T, n int, answer string) string {
 	if n == 6 {
 		return out
 	}
-	if want := "\n## " + strconv.Itoa(n+1) + ". "; !strings.Contains(out, want) {
+	if want := "\nScenario " + strconv.Itoa(n+1) + " of 6\n"; !strings.Contains(out, want) {
 		t.Fatalf("unlock.sh %d printed %q, want it to contain %q", n, out, want)
 	}
 	return out
@@ -63,8 +63,15 @@ func wantStatus(t *testing.T, prefix string) {
 // found the way the pair finds it, and unlocks the next scenario, which
 // starts the mode it needs; the last answers put the lab back to normal and
 // print the closing message. Only scenario 3's service is written down
-// here.
+// here. The six answers must all differ.
 func TestGatedWorksheet(t *testing.T) {
+	var answers []string
+	next := func(n int, answer string) string {
+		t.Helper()
+		answers = append(answers, answer)
+		return unlockNext(t, n, answer)
+	}
+
 	if out, code := unlockSh(t, 1, "not it"); code != 1 {
 		t.Fatalf("wrong answer: exit %d, %q", code, out)
 	}
@@ -82,24 +89,25 @@ func TestGatedWorksheet(t *testing.T) {
 	if placed.fields == nil {
 		t.Fatal("ORD-000042 has no POST /orders line")
 	}
-	unlockNext(t, 1, fmt.Sprint(placed.fields["status"]))
+	next(1, fmt.Sprint(placed.fields["status"]))
 
-	// 2: the service the same order's request reached, besides orders.
+	// 2: the status the other service the same request reached returned.
 	id := placed.str("request_id")
 	lines := eventuallyLines(t, fill(t, template(t, "request_id="), map[string]string{"request_id": id}), day)
-	var others []string
+	var others []logLine
 	for _, l := range lines {
 		if l.str("endpoint") != "POST /orders" {
-			others = append(others, l.labels["service"])
+			others = append(others, l)
 		}
 	}
 	if len(others) != 1 {
-		t.Fatalf("request %s: other services %v, want one", id, others)
+		t.Fatalf("request %s: %d lines from other services, want one", id, len(others))
 	}
 
-	// Answering 2 starts mode B. Its answer, the service, is written down below.
+	// Answering 2 starts mode B. Scenario 3's answer, the service, is
+	// written down below.
 	t.Run("B", func(t *testing.T) {
-		triggerWith(t, "B", func() { unlockNext(t, 2, others[0]) })
+		triggerWith(t, "B", func() { next(2, fmt.Sprint(others[0].fields["status"])) })
 		wantStatus(t, "active: B")
 	})
 
@@ -107,7 +115,7 @@ func TestGatedWorksheet(t *testing.T) {
 	// C's chain sees only its own errors).
 	var version string
 	t.Run("C", func(t *testing.T) {
-		start := triggerWith(t, "C", func() { unlockNext(t, 3, "inventory") })
+		start := triggerWith(t, "C", func() { next(3, "inventory") })
 		wantStatus(t, "active: C")
 		version = chainC(t, start)
 	})
@@ -117,9 +125,9 @@ func TestGatedWorksheet(t *testing.T) {
 
 	// Answering 4 starts mode A, after the same wait; answering 5 clears it.
 	t.Run("A", func(t *testing.T) {
-		start := triggerWith(t, "A", func() { unlockNext(t, 4, version) })
+		start := triggerWith(t, "A", func() { next(4, version) })
 		wantStatus(t, "active: A")
-		unlockNext(t, 5, chainA(t, start))
+		next(5, chainA(t, start))
 		wantStatus(t, "none")
 	})
 	if t.Failed() {
@@ -136,6 +144,22 @@ func TestGatedWorksheet(t *testing.T) {
 	if m == nil {
 		t.Fatalf("most frequent WARN %q names no key", top[0].Metric["msg"])
 	}
-	unlockNext(t, 6, m[1])
+	next(6, m[1])
 	wantStatus(t, "none")
+
+	// Every scenario's hints are now open, and status reports the progress.
+	if out, err := exec.Command("../../hint.sh", "6", "3").Output(); err != nil || !strings.HasPrefix(string(out), "Hint 3 of 3 for scenario 6:") {
+		t.Errorf("hint.sh 6 3: %v, %q", err, out)
+	}
+	if out, err := exec.Command("../../incident.sh", "status").Output(); err != nil || !strings.HasSuffix(string(out), "\nprogress: all 6 scenarios solved\n") {
+		t.Errorf("incident.sh status: %v, %q", err, out)
+	}
+
+	seen := map[string]bool{}
+	for _, a := range answers {
+		if seen[strings.ToLower(a)] {
+			t.Errorf("two scenarios share an answer")
+		}
+		seen[strings.ToLower(a)] = true
+	}
 }

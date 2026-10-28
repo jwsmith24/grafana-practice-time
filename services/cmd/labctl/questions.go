@@ -1,123 +1,125 @@
 package main
 
-// The worksheet's scenarios: one on-call shift at the shop, told in six
-// parts. Scenario 1 is in materials/worksheet.md; each answer unlocks the
-// scenario after it, and the last one unlocks the closing message. Each part
-// leans on what the one before it found, practises one part of Grafana, and
-// is a little harder: Explore and the time picker, a field filter, a panel's
-// tooltip and legend, annotations, a data link and a metric query, the Table
-// view. Only the hashes of the answers are kept (see answerHash).
+// The worksheet's scenarios: the tickets and alerts of one on-call shift at
+// the shop. Scenario 1 is in materials/worksheet.md; each answer unlocks the
+// scenario after it, and the last one unlocks the closing message. Each
+// scenario ends in one direct question about what's in Grafana, and gets a
+// little harder; the steps to the answer are in its three hints, each more
+// specific than the last. Query numbers in the hints are the ones on
+// materials/logql-cheat-sheet.md. Only the hashes of the answers are kept
+// (see answerHash).
 var labWorksheet = worksheet{
 	questions: []question{
 		{
 			title: "1. A ticket from support",
 			hash:  "f970ad92bce294169a31b13b2ab451c6b83e7241ac4e04487054b73042a5769e",
+			hints: [3]string{
+				`Open Explore on the Loki data source, and set the time picker to Last
+24 hours. Explore only searches the range you pick.`,
+				`Run query 4 with service = orders, field = order_id and value =
+ORD-000042.`,
+				`Expand the line whose endpoint is POST /orders. Its status field is the
+password.`,
+			},
 		},
 		{
-			title: "2. Behind the scenes of one order",
-			body: `The order went through, so Kyle tells the customer not to pay again.
-Kyle has one more question: placing an order takes more than one
-service, so which other service did the shop call to finish ORD-000042?
-Knowing the route a healthy order takes tells you what normal looks like,
-before anything breaks.
+			title: "2. A follow-up on the same ticket",
+			body: `Support replies: "Thanks. The customer also asks whether their item was
+actually checked against stock." Placing an order takes more than one
+service: while handling ORD-000042, orders called another one.
 
-Every request gets a request_id, and each service it passes through logs
-the same one. In Explore, expand ORD-000042's POST /orders line again and
-copy its request_id. Then, with the time picker still on Last 24 hours,
-run query 7 with that ID. It searches every service at once, so you get
-two lines: one from orders, and one from the service orders called.
-
-Grafana skill: following one request across services with a field filter.
-
-The password is the name of that other service.`,
-			hash: "591926df98b0bd032a92ea9800c354fdb6a11d31ad3bcab7bdcecff3ff9969dc",
+What HTTP status did that other service return?`,
+			hash: "33acebbbdc9fdc7c0cdd6f9ffd30c15e2b3d0f51ae2459fc8d057894727c6382",
+			hints: [3]string{
+				`Every request carries a request_id, and each service it passes through
+logs the same one.`,
+				`Copy the request_id from ORD-000042's POST /orders line, then run query 7
+with it. Keep the time picker on Last 24 hours.`,
+				`You get one line from orders and one from the service it called. The
+status field on that other line is the password.`,
+			},
 		},
 		{
-			title: "3. An alert fires: checkout is crawling",
+			title: "3. An alert fires",
 			mode:  "B",
-			body: `10:40. An alert lands in the on-call channel: "checkout is slow". Kyle
-adds that customers are giving up halfway through, and some orders fail.
-Orders is where checkout happens, but you now know orders waits on
-another service for every order. Is orders itself slow, or is it waiting?
+			body: `In the on-call channel:
 
-Open the Lab Overview dashboard (Dashboards in the left menu). The p95
-latency panel shows how long the slowest requests take, per service.
+  [FIRING] Checkout latency high: orders p95 above 2s
 
-- Hover over the lines: the tooltip shows each service's value.
-- Click a service's name in the legend under the panel to show only its
-  line. Click it again to show every line.
+Support adds that customers are giving up partway through checkout, and some
+orders fail.
 
-Grafana skill: reading a dashboard panel, its tooltip and its legend.
-
-The password is the name of the service whose line climbs highest: where
-you dig in next.`,
+Which service is slow?`,
 			hash: "abe256fef7d5192604a987d77f6a189580b5953a7078a2309196b984ad957f11",
+			hints: [3]string{
+				`Start on the Lab Overview dashboard. Which panel moved?`,
+				`On the p95 latency panel, hover over the lines to read each service's
+value, and click a service in the legend to show only its line.`,
+				`Orders gives up after 2 seconds, so its line stops near 2 s. The service
+whose line climbs highest is the password.`,
+			},
 		},
 		{
-			title: "4. It's broken again, and inventory looks fine",
+			title: "4. A new alert",
 			mode:  "C",
-			body: `11:15. Inventory has recovered, and the p95 panel looks calm. Ten minutes
-later, orders start failing again, and this time inventory's latency
-hasn't moved. Before you dig through logs, ask the usual first question:
-did anyone ship something just now?
+			body: `The latency alert resolves. A few minutes later, a different one fires:
 
-Grafana can mark moments like a release on a dashboard, as annotations.
-On Lab Overview, check that the Deploys toggle at the top is on. A yellow
-marker appears at the bottom of each panel just before the failures
-start. Hover over it to see what it records.
+  [FIRING] Orders error rate high: 5xx above 5%
 
-Grafana skill: annotations.
+This time, latency looks normal everywhere.
 
-The password is the version the marker shows: the release you roll back.`,
+What changed just before the errors started? The password is the new
+version number.`,
 			hash: "e666d985086a8a1f5e4e682d6d23e01ba64ef64406839b9ec5afa340344557b4",
+			hints: [3]string{
+				`When failures start suddenly, look for a change just before them.`,
+				`Look for the deploy markers (vertical lines) on Lab Overview, or run
+query 4 with service = orders, field = event and value = deploy.`,
+				`Hover over the marker just before the errors start, or read the deploy
+line. Its version is the password.`,
+			},
 		},
 		{
 			title: "5. The tickets keep coming",
 			mode:  "A",
-			body: `11:50. The rollback went out: a new marker shows the old version back in
-place. But Kyle's queue is filling up again, this time with customers
-whose orders fail every time they try. Most orders go through fine. What
-do the failing ones have in common?
+			body: `Support forwards three tickets in a row: "My order fails every time I
+retry." Other customers' orders are going through fine.
 
-1. On Lab Overview, click "orders POST /orders" in the legend of the
-   Error rate panel, then click a point on its line. Choose "Logs for
-   orders": Grafana opens Explore with that service's logs.
-2. Change the query to query 1 with service = orders and level = ERROR.
-   Expand an error line and find its item_id field.
-3. Run query 9 with field = item_id, service = orders, level = ERROR and
-   range = 5m. It counts the errors for each item. Switch the result to
-   Table to read it.
-
-Grafana skill: jumping from a dashboard to the logs with a data link, and
-turning logs into numbers.
-
-The password is the only item_id in that result: the product Kyle can
-warn customers about while you fix it.`,
+Which SKU do the failing orders have in common?`,
 			hash: "34f82c78c8367452a1fb03729101f297963b3a5830c2b626b41354b9fc65c2c0",
+			hints: [3]string{
+				`Failures that hit some orders and not others usually share a field
+value.`,
+				`Run query 9 on inventory with level = ERROR, and try counting by
+different fields.`,
+				`Count by item_id. One SKU accounts for every failure; it's the password.`,
+			},
 		},
 		{
-			title: "6. Stretch: the review after the shift",
-			body: `The shop is healthy again. In the review after your shift, the team asks
-why nobody spotted the trouble in the warnings earlier. You suspect one
-warning floods the logs all day, so the ones that matter get lost.
+			title: "6. Stretch: the shift review",
+			body: `At the review after the shift, someone asks why nobody noticed the early
+warnings. One warning shows up in the logs every few seconds, all day,
+whether or not anything is wrong.
 
-In Explore, run query 10 with level = WARN and range = 1m, and switch the
-result to Table. The top message shows up all the time, even when nothing
-is broken. Query 6 hides it, so the warnings that matter stand out.
-
-Grafana skill: counting log lines, and the Table view.
-
-The password is the config key that message names: the first thing you
-fix tomorrow.`,
+Which config key does that warning complain about?`,
 			hash: "1b5281026d200d6f06bf15b0dd427c9c6c676a93c604968557bb233354e9ff6a",
+			hints: [3]string{
+				`Find the warning that shows up most often.`,
+				`Run query 10 with level = WARN and range = 1m, then switch the result to
+Table.`,
+				`The top message names a deprecated config key. That key is the
+password.`,
+			},
 		},
 	},
-	closing: `That's all six, and the end of your shift. You answered Kyle's ticket,
-traced an order through the shop, found what was holding up checkout,
-caught a bad release, found the product behind the failing orders and cut
-the noise for next time, using Explore, log details, a dashboard panel,
-annotations, a data link and the Table view.
+	closing: `That's all six.
 
-Tell the facilitator you're done. While you wait, write the three-line
-summary you'd send Kyle, and compare it with another pair's.`,
+Before the debrief, pick an app you work on and think about:
+
+- If it failed the way scenario 3, 4 or 5 did, how would you find out, and
+  how long would it take?
+- Could you trace one request through it today? If not, what's missing from
+  its logs?
+- What's one change you could make this week: a request ID, JSON logs, a
+  version logged at startup, or a dashboard panel?`,
 }

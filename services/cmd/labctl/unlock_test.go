@@ -16,15 +16,27 @@ func (f *fakeSwitch) Set(l string) error      { f.calls = append(f.calls, l); re
 func (f *fakeSwitch) Clear() error            { f.calls = append(f.calls, "clear"); return nil }
 func (f *fakeSwitch) Duration() time.Duration { return 3 * time.Minute }
 
-func runUnlock(ws worksheet, args ...string) (int, string, string) {
-	code, out, errOut, _ := runUnlockSw(ws, args...)
+// tempProgress returns progress kept in a fresh state directory.
+func tempProgress(t *testing.T) progress {
+	t.Helper()
+	return progressFor(filepath.Join(t.TempDir(), "state.json"))
+}
+
+func runUnlock(t *testing.T, ws worksheet, args ...string) (int, string, string) {
+	t.Helper()
+	code, out, errOut, _ := runUnlockSw(t, ws, args...)
 	return code, out, errOut
 }
 
-func runUnlockSw(ws worksheet, args ...string) (int, string, string, []string) {
+func runUnlockSw(t *testing.T, ws worksheet, args ...string) (int, string, string, []string) {
+	t.Helper()
+	return runUnlockProg(ws, tempProgress(t), args...)
+}
+
+func runUnlockProg(ws worksheet, prog progress, args ...string) (int, string, string, []string) {
 	var out, errb bytes.Buffer
 	sw := &fakeSwitch{}
-	code := unlock(args, ws, sw, &out, &errb)
+	code := unlock(args, ws, sw, prog, &out, &errb)
 	return code, out.String(), errb.String(), sw.calls
 }
 
@@ -40,36 +52,36 @@ func TestUnlock(t *testing.T) {
 	}
 
 	// A right answer prints the next question and starts its mode.
-	code, out, _, calls := runUnlockSw(ws, "1", "alpha")
-	if code != 0 || !strings.Contains(out, "## 2. Two\n\n") || !strings.Contains(out, "Second body.") || !strings.Contains(out, "./unlock.sh 2 <answer>") {
+	code, out, _, calls := runUnlockSw(t, ws, "1", "alpha")
+	if code != 0 || !strings.Contains(out, "Scenario 2 of 3\n\nSecond body.") || !strings.Contains(out, "./hint.sh 2") || !strings.Contains(out, "./unlock.sh 2 <answer>") || strings.Contains(out, "Two") {
 		t.Fatalf("right answer: %d %q", code, out)
 	}
 	if strings.Join(calls, ",") != "B" {
 		t.Fatalf("right answer: mode calls %v; want B started", calls)
 	}
 	// The next question needs no mode: the lab is cleared.
-	if _, _, _, calls := runUnlockSw(ws, "2", "beta gamma"); strings.Join(calls, ",") != "clear" {
+	if _, _, _, calls := runUnlockSw(t, ws, "2", "beta gamma"); strings.Join(calls, ",") != "clear" {
 		t.Errorf("answer 2: mode calls %v; want a clear", calls)
 	}
-	if _, _, _, calls := runUnlockSw(ws, "3", "v-9"); strings.Join(calls, ",") != "clear" {
+	if _, _, _, calls := runUnlockSw(t, ws, "3", "v-9"); strings.Join(calls, ",") != "clear" {
 		t.Errorf("last answer: mode calls %v, want a clear", calls)
 	}
 	for _, a := range []string{"ALPHA", "  alpha ", `"alpha"`, "`alpha`", "'Alpha'"} {
-		if code, _, _ := runUnlock(ws, "1", a); code != 0 {
+		if code, _, _ := runUnlock(t, ws, "1", a); code != 0 {
 			t.Errorf("answer %q: exit %d, want 0", a, code)
 		}
 	}
-	if code, out, _ := runUnlock(ws, "2", "  beta   GAMMA "); code != 0 || !strings.Contains(out, "## 3. Three") {
+	if code, out, _ := runUnlock(t, ws, "2", "  beta   GAMMA "); code != 0 || !strings.Contains(out, "Scenario 3 of 3") {
 		t.Errorf("multi-word answer: %d %q", code, out)
 	}
-	if code, out, _ := runUnlock(ws, "3", "V-9"); code != 0 || !strings.Contains(out, "The end.") || strings.Contains(out, "##") {
+	if code, out, _ := runUnlock(t, ws, "3", "V-9"); code != 0 || !strings.Contains(out, "The end.") || strings.Contains(out, "Scenario") {
 		t.Errorf("last answer: %d %q", code, out)
 	}
 
 	// A wrong answer gets the same neutral line whatever was tried.
 	var wrong []string
 	for _, args := range [][]string{{"1", "beta"}, {"1", "alph"}, {"2", "alpha"}, {"3", "v-8"}} {
-		code, out, _, calls := runUnlockSw(ws, args...)
+		code, out, _, calls := runUnlockSw(t, ws, args...)
 		if code != 1 || len(calls) != 0 {
 			t.Errorf("%v: exit %d, mode calls %v; want 1 and none", args, code, calls)
 		}
@@ -82,10 +94,37 @@ func TestUnlock(t *testing.T) {
 	}
 
 	for _, args := range [][]string{{}, {"1"}, {"0", "alpha"}, {"4", "alpha"}, {"x", "alpha"}, {"1", "  "}, {"1", "alpha", "extra"}} {
-		if code, out, errOut, calls := runUnlockSw(ws, args...); code != 2 || !strings.Contains(errOut, "usage") || out != "" || len(calls) != 0 {
+		if code, out, errOut, calls := runUnlockSw(t, ws, args...); code != 2 || !strings.Contains(errOut, "usage") || out != "" || len(calls) != 0 {
 			t.Errorf("%q: exit %d, stdout %q, stderr %q, mode calls %v; want usage, 2 and no mode change", args, code, out, errOut, calls)
 		}
 	}
+}
+
+// A right answer records the next scenario as unlocked; a wrong one, bad
+// input or an earlier answer leaves the progress where it was.
+func TestUnlockRecordsProgress(t *testing.T) {
+	ws := worksheet{
+		questions: []question{
+			{title: "1. One", hash: answerHash(1, "alpha")},
+			{title: "2. Two", body: "Second body.", hash: answerHash(2, "beta")},
+			{title: "3. Three", body: "Third body.", hash: answerHash(3, "gamma")},
+		},
+		closing: "The end.",
+	}
+	prog := tempProgress(t)
+	step := func(want int, args ...string) {
+		t.Helper()
+		runUnlockProg(ws, prog, args...)
+		if got, err := prog.Unlocked(); err != nil || got != want {
+			t.Fatalf("after unlock %q: progress %d, %v; want %d", args, got, err, want)
+		}
+	}
+	step(1, "1", "wrong")
+	step(1, "1")
+	step(2, "1", "alpha")
+	step(3, "2", "beta")
+	step(3, "1", "alpha")
+	step(4, "3", "gamma")
 }
 
 func TestUnlockThroughRun(t *testing.T) {
@@ -125,8 +164,32 @@ func TestLabWorksheet(t *testing.T) {
 		if strings.Contains(q.body, "incident.sh") {
 			t.Errorf("scenario %d tells the pair to run incident.sh", i+1)
 		}
+		for j, h := range q.hints {
+			if strings.TrimSpace(h) == "" {
+				t.Errorf("scenario %d has no hint %d", i+1, j+1)
+			}
+		}
+		for j := range i {
+			if q.hash == qs[j].hash {
+				t.Errorf("scenarios %d and %d store the same hash", j+1, i+1)
+			}
+		}
 	}
 	if labWorksheet.closing == "" {
 		t.Error("no closing message")
+	}
+}
+
+// The text is printed from Go raw strings, which can't hold a backtick.
+func TestNoBackticks(t *testing.T) {
+	texts := []string{labWorksheet.closing}
+	for _, q := range labWorksheet.questions {
+		texts = append(texts, q.title, q.body)
+		texts = append(texts, q.hints[:]...)
+	}
+	for _, s := range texts {
+		if strings.Contains(s, "`") {
+			t.Errorf("text contains a backtick: %q", s)
+		}
 	}
 }
