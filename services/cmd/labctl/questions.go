@@ -16,10 +16,10 @@ var labWorksheet = worksheet{
 		{
 			title: "2. Behind the scenes of one order",
 			body: `The order went through, so Kyle tells the customer not to pay again.
-Kyle has one more question: placing an order takes more than one service, so
-which other service did the shop call to finish ORD-000042? Knowing the
-route a healthy order takes tells you what normal looks like, before
-anything breaks.
+Kyle has one more question: placing an order takes more than one
+service, so which other service did the shop call to finish ORD-000042?
+Knowing the route a healthy order takes tells you what normal looks like,
+before anything breaks.
 
 Every request gets a request_id, and each service it passes through logs
 the same one. In Explore, expand ORD-000042's POST /orders line again and
@@ -36,9 +36,9 @@ The password is the name of that other service.`,
 			title: "3. An alert fires: checkout is crawling",
 			mode:  "B",
 			body: `10:40. An alert lands in the on-call channel: "checkout is slow". Kyle
-adds that customers are giving up halfway through, and some orders fail. Orders gets the blame,
-but you now know orders waits on another service for every order. Is
-orders itself slow, or is it waiting?
+adds that customers are giving up halfway through, and some orders fail.
+Orders is where checkout happens, but you now know orders waits on
+another service for every order. Is orders itself slow, or is it waiting?
 
 Open the Lab Overview dashboard (Dashboards in the left menu). The p95
 latency panel shows how long the slowest requests take, per service.
@@ -49,17 +49,17 @@ latency panel shows how long the slowest requests take, per service.
 
 Grafana skill: reading a dashboard panel, its tooltip and its legend.
 
-The password is the name of the service whose line climbs highest: the
-team you call in next.`,
+The password is the name of the service whose line climbs highest: where
+you dig in next.`,
 			hash: "abe256fef7d5192604a987d77f6a189580b5953a7078a2309196b984ad957f11",
 		},
 		{
-			title: "4. It's broken again, and nobody touched inventory",
+			title: "4. It's broken again, and inventory looks fine",
 			mode:  "C",
-			body: `11:15. The inventory team fixed their side, and the p95 panel looks calm.
-Ten minutes later, orders start failing again. The inventory team swears
-they changed nothing this time. Your teammate asks: "did anyone ship
-something just now?"
+			body: `11:15. Inventory has recovered, and the p95 panel looks calm. Ten minutes
+later, orders start failing again, and this time inventory's latency
+hasn't moved. Before you dig through logs, ask the usual first question:
+did anyone ship something just now?
 
 Grafana can mark moments like a release on a dashboard, as annotations.
 On Lab Overview, check that the Deploys toggle at the top is on. A yellow
@@ -68,8 +68,7 @@ start. Hover over it to see what it records.
 
 Grafana skill: annotations.
 
-The password is the version the marker shows: the release you ask the
-orders team to roll back.`,
+The password is the version the marker shows: the release you roll back.`,
 			hash: "e666d985086a8a1f5e4e682d6d23e01ba64ef64406839b9ec5afa340344557b4",
 		},
 		{
@@ -77,8 +76,8 @@ orders team to roll back.`,
 			mode:  "A",
 			body: `11:50. The rollback went out: a new marker shows the old version back in
 place. But Kyle's queue is filling up again, this time with customers
-whose orders fail every time they try. Most orders go through fine. What do the
-failing ones have in common?
+whose orders fail every time they try. Most orders go through fine. What
+do the failing ones have in common?
 
 1. On Lab Overview, click "orders POST /orders" in the legend of the
    Error rate panel, then click a point on its line. Choose "Logs for
@@ -92,8 +91,8 @@ failing ones have in common?
 Grafana skill: jumping from a dashboard to the logs with a data link, and
 turning logs into numbers.
 
-The password is the only item_id in that result: the product Kyle can warn
-customers about while it's fixed.`,
+The password is the only item_id in that result: the product Kyle can
+warn customers about while you fix it.`,
 			hash: "34f82c78c8367452a1fb03729101f297963b3a5830c2b626b41354b9fc65c2c0",
 		},
 		{
@@ -108,13 +107,13 @@ is broken. Query 6 hides it, so the warnings that matter stand out.
 
 Grafana skill: counting log lines, and the Table view.
 
-The password is the config key that message names: the one the team
-fixes first.`,
+The password is the config key that message names: the first thing you
+fix tomorrow.`,
 			hash: "1b5281026d200d6f06bf15b0dd427c9c6c676a93c604968557bb233354e9ff6a",
 		},
 	},
 	closing: `That's all six, and the end of your shift. You answered Kyle's ticket,
-traced an order through the shop, found who was holding up checkout,
+traced an order through the shop, found what was holding up checkout,
 caught a bad release, found the product behind the failing orders and cut
 the noise for next time, using Explore, log details, a dashboard panel,
 annotations, a data link and the Table view.
