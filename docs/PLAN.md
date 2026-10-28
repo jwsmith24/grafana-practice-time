@@ -83,6 +83,6 @@ Harness decisions (introduced in S1.1):
 3. **Deadline.** M1–M6 are due Oct 22, 2026, the day after this plan was written. If anything slips, prioritize the critical path above. The worksheet and cheat sheet (M6) block the dry run; the GHCR fallback (S5.8) is conditional.
 4. **The incident C signal may be faint.** `SKU-1042` is ~2% of ~5 req/s (≈ 0.1 req/s). With a 5 s scrape and a `[1m]` rate window, the 30 s first-signal target is tight. S4.3 makes the SKU weight tunable and decides using T4.3-3.
 5. **Loki adds labels on its own.** Recent Loki versions add `service_name`, and Alloy file sources add `filename`. Both are dropped or disabled so streams carry only `service`, `level`, and `env` (T1.2-2).
-6. **The incident switch must be silent.** Services must not log "incident" or anything that names the cause. `incident.sh` passes only the letter. Covered by T4.1-5, T4.1-7, T4.1-8, T5.6-3, and T6.2-2.
+6. **The incident switch must be silent.** Services must not log "incident" or anything that names the cause. `incident.sh` passes only the letter. Covered by T4.1-5, T4.1-7, T4.1-8, and T6.2-2 (T5.6-3, the README check, was removed).
 7. **Incident B clear behavior is unspecified.** Proposal: on clear, orders logs a rollback `event="deploy"` with `version="1.4.2"`, so the annotations stay consistent. Decide in S4.4.
 8. **Open questions in the spec** (ASWF label names; whether ASWF uses Loki). These affect the Alloy labels and the cheat sheet, so they're tracked as S1.4 (#5) and should be answered before M2.
