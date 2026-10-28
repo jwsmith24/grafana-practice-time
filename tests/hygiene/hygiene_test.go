@@ -76,11 +76,13 @@ func TestNoInternalDetails(t *testing.T) {
 var causeWords = []string{"sku", "1042", "latency", "slow", "token", "auth", "credential", "rejected", "deploy", "1.4.3", "deadline", "timeout"}
 
 // questionWords are causeWords less the dashboard names the gated questions
-// point at (the p95 latency panel, the Deploys toggle). The answers stay out.
-var questionWords = []string{"sku", "1042", "token", "auth", "credential", "rejected", "1.4.3", "deadline", "timeout"}
+// and their hints point at (the p95 latency panel, the deploy markers), and
+// less "sku": the catalog's item IDs are all SKUs, and scenario 5 asks for
+// one. The answers stay out.
+var questionWords = []string{"1042", "token", "auth", "credential", "rejected", "1.4.3", "deadline", "timeout"}
 
 // T6.2-2, and the same check for the cheat sheet, and (T6.5-5) for the
-// worksheet's other questions and unlock messages. The demo script walks
+// worksheet's other questions, their hints and the unlock and hint messages. The demo script walks
 // through mode B in the open, so it is only kept clear of the other modes'
 // evidence.
 func TestMaterialsRevealNothing(t *testing.T) {
@@ -89,7 +91,9 @@ func TestMaterialsRevealNothing(t *testing.T) {
 		"materials/worksheet.md":           causeWords,
 		"services/cmd/labctl/questions.go": questionWords,
 		"services/cmd/labctl/unlock.go":    causeWords,
+		"services/cmd/labctl/hint.go":      causeWords,
 		"unlock.sh":                        causeWords,
+		"hint.sh":                          causeWords,
 	}
 	for f, words := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))

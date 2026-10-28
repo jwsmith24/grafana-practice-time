@@ -33,7 +33,7 @@ When `./check.sh` prints `All checks passed`, open http://localhost:3300. No log
 
 ## Worksheet
 
-The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet is six short scenarios that follow one on-call shift, each practising a different part of Grafana, from Explore to annotations and data links. It starts with scenario 1. Each answer is a password that unlocks the next scenario:
+The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet is six short support tickets and alerts from one on-call shift, each ending in one question you answer from Grafana. It starts with scenario 1. Each answer is a password that unlocks the next scenario:
 
 ```sh
 ./unlock.sh 1 <answer>   # a right answer prints scenario 2, and so on
@@ -41,7 +41,14 @@ The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet 
 
 Unlocking scenarios 3 to 5 starts the lab's modes for you, so you don't need `./incident.sh` during the worksheet.
 
-Stuck on a scenario for more than 5 minutes? Ask the facilitator.
+Stuck? Each scenario has three hints, each more specific than the last:
+
+```sh
+./hint.sh 1      # the first hint for scenario 1
+./hint.sh 1 2    # the second; 3 is the last
+```
+
+Still stuck 5 minutes after the last hint? Ask the facilitator.
 
 ## Reset
 

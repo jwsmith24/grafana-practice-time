@@ -81,7 +81,7 @@ func TestMemory(t *testing.T) {
 		must(t, nil, "./incident.sh", "B")
 		t.Cleanup(func() { run(t, nil, "./incident.sh", "clear") })
 		peak := sampleMemory(t, 10*time.Second, func() bool {
-			return strings.TrimSpace(must(t, nil, "./incident.sh", "status")) == "none"
+			return strings.HasPrefix(must(t, nil, "./incident.sh", "status"), "none\n")
 		})
 		t.Logf("peak %.0f MiB", peak/(1<<20))
 		if peak >= memBudget {

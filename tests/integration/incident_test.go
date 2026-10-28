@@ -22,7 +22,8 @@ func labDuration(t *testing.T) time.Duration {
 	return d
 }
 
-// incidentSh runs ./incident.sh with arg and returns its trimmed output.
+// incidentSh runs ./incident.sh with arg and returns the first line of its
+// trimmed output.
 func incidentSh(t *testing.T, arg string) string {
 	t.Helper()
 	cmd := exec.Command("../../incident.sh", arg)
@@ -31,7 +32,9 @@ func incidentSh(t *testing.T, arg string) string {
 	if err != nil {
 		t.Fatalf("incident.sh %s: %v", arg, err)
 	}
-	return strings.TrimSpace(string(out))
+	// status prints the mode, then the worksheet progress: keep the mode.
+	first, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
+	return first
 }
 
 // orders5xx returns the error-rate panel's latest value for

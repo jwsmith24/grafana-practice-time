@@ -13,10 +13,11 @@ import (
 const unlockUsage = "usage: ./unlock.sh N <answer>   (N is the scenario you solved, 1 to %d)\n"
 
 type question struct {
-	title string // "N. Title", as in the worksheet's headings
+	title string // "N. Title": a label for tests and the facilitator; unlock doesn't print it
 	body  string
-	mode  string // the lab mode that runs while this question is open, if any
-	hash  string // answerHash of this question's answer
+	mode  string    // the lab mode that runs while this question is open, if any
+	hash  string    // answerHash of this question's answer
+	hints [3]string // printed by labctl hint, each more specific than the last
 }
 
 // modeSwitch is the part of incident.Switch that unlock uses.
@@ -46,9 +47,9 @@ func answerHash(n int, answer string) string {
 // unlock checks the answer to question N (args are N and the answer) and
 // prints the next question, or the closing message after the last one. It
 // starts the mode the next question needs, or clears the lab when it needs
-// none. A wrong answer changes nothing, and running a right one again
-// restarts the mode.
-func unlock(args []string, ws worksheet, sw modeSwitch, stdout, stderr io.Writer) int {
+// none, and records the next question as unlocked. A wrong answer changes
+// nothing, and running a right one again restarts the mode.
+func unlock(args []string, ws worksheet, sw modeSwitch, prog progress, stdout, stderr io.Writer) int {
 	n := 0
 	if len(args) == 2 {
 		n, _ = strconv.Atoi(args[0])
@@ -71,6 +72,9 @@ func unlock(args []string, ws worksheet, sw modeSwitch, stdout, stderr io.Writer
 	} else {
 		err = sw.Clear()
 	}
+	if err == nil {
+		err = prog.Record(n + 1)
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
@@ -79,10 +83,11 @@ func unlock(args []string, ws worksheet, sw modeSwitch, stdout, stderr io.Writer
 		fmt.Fprintf(stdout, "Correct.\n\n%s\n", ws.closing)
 		return 0
 	}
-	fmt.Fprintf(stdout, "Correct. Here is scenario %d.\n\n## %s\n\n", n+1, next.title)
+	fmt.Fprint(stdout, "Correct.\n\n")
 	if next.mode != "" {
 		fmt.Fprintf(stdout, "Something in the lab has just broken (mode %s). It recovers by itself after %s;\nto break it again, run ./unlock.sh %d <answer> again.\n\n", next.mode, sw.Duration(), n)
 	}
-	fmt.Fprintf(stdout, "%s\n\nWhen you have the password: ./unlock.sh %d <answer>\n", next.body, n+1)
+	fmt.Fprintf(stdout, "Scenario %d of %d\n\n%s\n\n", n+1, len(ws.questions), next.body)
+	fmt.Fprintf(stdout, "Stuck? Run ./hint.sh %d for a hint.\nWhen you have the password: ./unlock.sh %d <answer>\n", n+1, n+1)
 	return 0
 }

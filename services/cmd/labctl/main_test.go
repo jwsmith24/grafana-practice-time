@@ -18,7 +18,7 @@ func TestLabctl(t *testing.T) {
 	t.Setenv("LAB_STATE_FILE", filepath.Join(t.TempDir(), "state.json"))
 	t.Setenv("INCIDENT_DURATION", "")
 
-	if code, out, _ := runLabctl(t, "status"); code != 0 || out != "none\n" {
+	if code, out, _ := runLabctl(t, "status"); code != 0 || out != "none\nprogress: scenario 1 of 6 unlocked\n" {
 		t.Fatalf("status: %d %q", code, out)
 	}
 	outputs := map[string]string{}
