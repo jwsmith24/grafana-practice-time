@@ -1,6 +1,6 @@
 # Grafana Troubleshooting Lab
 
-A small shop runs on your laptop: an `orders` service, an `inventory` service, and a load generator that places orders all day. Grafana, Loki, Prometheus and Alloy watch it. During the session you switch the lab into a broken mode and use Grafana to find out what went wrong.
+A small shop runs on your laptop: an `orders` service, an `inventory` service, and a load generator that places orders all day. Grafana, Loki, Prometheus and Alloy watch it. During the session the worksheet switches the lab into broken modes, and you use Grafana to find out what went wrong.
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ When `./check.sh` prints `All checks passed`, open http://localhost:3300. No log
 
 ## Worksheet
 
-The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet is six short scenarios, each practising a different part of Grafana, from Explore to annotations and data links. It starts with scenario 1. Each answer is a password that unlocks the next scenario:
+The session's worksheet is `materials/worksheet.md`, with the LogQL cheat sheet `materials/logql-cheat-sheet.md` next to it. The worksheet is six short scenarios that follow one on-call shift, each practising a different part of Grafana, from Explore to annotations and data links. It starts with scenario 1. Each answer is a password that unlocks the next scenario:
 
 ```sh
 ./unlock.sh 1 <answer>   # a right answer prints scenario 2, and so on

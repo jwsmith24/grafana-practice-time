@@ -44,11 +44,11 @@ func TestUnlock(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "## 2. Two\n\n") || !strings.Contains(out, "Second body.") || !strings.Contains(out, "./unlock.sh 2 <answer>") {
 		t.Fatalf("right answer: %d %q", code, out)
 	}
-	if strings.Join(calls, ",") != "B" || !strings.Contains(out, "Mode B is now running") || !strings.Contains(out, "./unlock.sh 1 <answer> again") {
+	if strings.Join(calls, ",") != "B" || !strings.Contains(out, "(mode B)") || !strings.Contains(out, "./unlock.sh 1 <answer> again") {
 		t.Fatalf("right answer: mode calls %v, output %q; want B started and how to restart it", calls, out)
 	}
 	// The next question needs no mode: the lab is cleared.
-	if _, out, _, calls := runUnlockSw(ws, "2", "beta gamma"); strings.Join(calls, ",") != "clear" || strings.Contains(out, "Mode") {
+	if _, out, _, calls := runUnlockSw(ws, "2", "beta gamma"); strings.Join(calls, ",") != "clear" || strings.Contains(out, "(mode") {
 		t.Errorf("answer 2: mode calls %v, output %q; want a clear and no mode line", calls, out)
 	}
 	if _, _, _, calls := runUnlockSw(ws, "3", "v-9"); strings.Join(calls, ",") != "clear" {
