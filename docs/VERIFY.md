@@ -129,27 +129,21 @@ Then:
 `[M]` on a real Mac: MT5.4-1 (Wi-Fi off) on #26, and MT5.5-1 (Docker Desktop memory) on #27, recorded during S5.7 (#29).
 
 
-## M6 Materials: worksheet, demo script and cheat sheet
+## M6 Materials: worksheet and cheat sheet
 
-**Automated:** T6.1-x, T6.2-x and T6.4-x.
-- **Static:** `tests/static/cheatsheet_test.go`, `worksheet_test.go` and `demo_test.go` (structure, techniques, LogQL only, screenshots exist, the demo runs only `./incident.sh A`). `tests/hygiene` keeps the evidence of every mode out of the cheat sheet and the worksheet, and the other modes' evidence out of the demo script.
+**Automated:** T6.1-x and T6.2-x. (The demo script, S6.4, was removed from the repo after M6, with its tests.)
+- **Static:** `tests/static/cheatsheet_test.go`, and `worksheet_test.go` (structure, techniques, LogQL only). `tests/hygiene` keeps the evidence of every mode out of the cheat sheet and the worksheet.
 - **Integration:**
   - `materials_baseline_test.go`: T6.2-3, scenarios 1, 2 and 6 (the stretch) at baseline.
-  - `materials_demo_test.go`: T6.4-3, every demo query during mode A, in order.
   - `materials_test.go`: T6.1-3, every cheat-sheet query runs. T6.1-4 (lab AC5) chains cheat-sheet queries only, each filled in from the results before it, from a mode's first signal to its root cause, for each of A, B and C.
 
-The exit tests are T6.1-4 and T6.4-3. S6.3, the answer key, is kept outside this repo.
+The exit test is T6.1-4. S6.3, the answer key, is kept outside this repo.
 
 **By hand**, with the stack started as above:
 1. Print `materials/logql-cheat-sheet.md` to PDF (for example from GitHub's rendered view). It fits on one page (MT6.1-1, on #32).
 2. Read `materials/worksheet.md` (scenario 1; since S6.5, scenarios 2 to 6 are printed by `./unlock.sh`), and none of them names a cause. Paste each cheat-sheet query into Explore with the placeholders filled in, and check that each one returns data.
-3. Walk through `materials/demo-script.md` with `./incident.sh A`. Each step's query returns what the step describes, and its screenshot matches the current UI (MT6.4-2, on #35).
-4. To regenerate the screenshots after a dashboard or Grafana change, start a fresh stack (`down -v`, then `up`), wait two minutes, and run:
-   ```sh
-   (cd tests/e2e && npx playwright test -c capture.config.ts)   # about 1.5 min; rewrites materials/demo/*.png
-   ```
 
-`[M]` for the facilitator: MT6.2-1 (solo worksheet run in 12 minutes or less; superseded by MT6.5-1) on #33, and MT6.4-1 (timed rehearsal in 15 minutes or less) on #35.
+`[M]` for the facilitator: MT6.2-1 (solo worksheet run in 12 minutes or less; superseded by MT6.5-1) on #33. MT6.4-1 and MT6.4-2 on #35 no longer apply: the demo script is gone.
 
 ## S6.5 Gated worksheet: each answer unlocks the next question
 

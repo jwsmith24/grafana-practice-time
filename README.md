@@ -85,4 +85,4 @@ Run `docker compose up -d <service>`, then check `docker compose logs <service>`
 Other problems:
 
 - **Low memory.** If containers keep restarting, or Docker Desktop reports low memory, open Docker Desktop's **Settings → Resources** and give it at least 4 GB of memory. Then close other heavy apps and run `docker compose up -d`.
-- **Image pulls fail** (`pull access denied`, `toomanyrequests`, or timeouts). Wait a few minutes and run `docker compose up -d` again. If it keeps failing, ask the facilitator for a registry and follow [Registry fallback](#registry-fallback).
+- **Image pulls fail** (`pull access denied`, `toomanyrequests`, or timeouts). Wait a few minutes and run `docker compose up -d` again. If it keeps failing, ask the facilitator for a registry, set `IMAGE_REGISTRY=<that registry>` in `.env`, and run `docker compose pull` and then `docker compose up -d --build`.

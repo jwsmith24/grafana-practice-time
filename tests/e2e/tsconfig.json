@@ -7,5 +7,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["playwright.config.ts", "capture.config.ts", "specs/**/*.ts", "capture/**/*.ts"]
+  "include": ["playwright.config.ts", "specs/**/*.ts"]
 }

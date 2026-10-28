@@ -30,7 +30,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 | M7 Dry run (#37 manual, #38) | Not started | |
 
 - **Playwright retries once in CI.** A line like `1 flaky` in the E2E output means a real problem to fix, not a pass.
-- **Manual tests still open:** MT1.1-1 (CI goes red on a failing test) on #2; MT5.4-1 (Wi-Fi off) on #26; MT5.5-1 (Docker Desktop memory) on #27; MT6.1-1 (cheat sheet prints on one page) on #32; MT6.5-1 (solo gated worksheet run ≤ 12 min; supersedes MT6.2-1 on #33) and MT6.5-2 (the six passwords are on the answer key) on #54; MT6.4-1 (timed demo ≤ 15 min) and MT6.4-2 (screenshots match the UI) on #35. Checklists are on the issues.
+- **Manual tests still open:** MT1.1-1 (CI goes red on a failing test) on #2; MT5.4-1 (Wi-Fi off) on #26; MT5.5-1 (Docker Desktop memory) on #27; MT6.1-1 (cheat sheet prints on one page) on #32; MT6.5-1 (solo gated worksheet run ≤ 12 min; supersedes MT6.2-1 on #33) and MT6.5-2 (the six passwords are on the answer key) on #54. (MT6.4-1 and MT6.4-2 on #35 lapsed with the demo script.) Checklists are on the issues.
 - **Decision recorded on #5:** labels stay `service`/`level`/`env`, and ASWF uses Loki, so S6.1 needs no translation section. The human still has to update the spec's "Decided" list.
 - **Not for an agent:** #4 (S1.3, Mac pull test), #29 (S5.7, timed Mac setup), #37 (dry run), #30 (GHCR fallback, only if #4 fails), #34 (S6.3, the answer key; it stays out of this repo).
 - **Disk prerequisite is tight.** The seven images take 2.34 GB, and the service build adds the Go image and build cache. The README keeps the spec's 3 GB; the human has been told it may need to be 4 GB.
@@ -38,8 +38,7 @@ Read this file, then `docs/PLAN.md` for the issue index, the test conventions, a
 ## Next steps
 
 1. **M7:** #38 fixes what the human's dry run (#37) finds. It still waits on the dry-run findings; don't start #38 before them.
-   - If a finding changes the dashboard or Grafana, regenerate the demo screenshots (see "Materials" below) and ask the human to redo MT6.4-2.
-   - If a finding changes a log line, a field, or a cheat-sheet query, T6.1-4 and T6.4-3 will tell you whether the materials still work.
+   - If a finding changes a log line, a field, or a cheat-sheet query, T6.1-4 will tell you whether the materials still work.
 
 ## Decisions pending (ask the human; don't decide alone)
 
@@ -80,13 +79,11 @@ tests/static              Go: compose config, image is static + has no shell, pr
 tests/integration         Go, build tag `integration`; reaches Loki/Prometheus via Grafana's datasource proxy
                           incident_test.go: T4.1 + shared helpers (incidentSh, waitQuiet, orders5xx, postOrder)
                           mode_{a,b,c}_test.go: one TestMode<letter> per incident
-                          materials_baseline_test.go (T6.2-3), materials_demo_test.go (T6.4-3), materials_test.go (T6.1-3, T6.1-4 chains)
+                          materials_baseline_test.go (T6.2-3), materials_test.go (T6.1-3, T6.1-4 chains)
                           materials_unlock_test.go (T6.5-4): whole gated chain via ./unlock.sh, answers taken from the lab
                           session_test.go: sorts last; T4.4-7 red herring over the whole run
-materials/                logql-cheat-sheet.md (10 templates, <placeholder> names), worksheet.md (intro, tips, scenario 1; 2–6 come from ./unlock.sh), demo-script.md (mode A, 7 steps)
-                          demo/step-N.png: the demo's screenshot fallbacks, made by tests/e2e/capture
+materials/                logql-cheat-sheet.md (10 templates, <placeholder> names), worksheet.md (intro, tips, scenario 1; 2–6 come from ./unlock.sh)
 tests/e2e                 Playwright 1.56.1 (data links, deploy annotation)
-                          capture/ + capture.config.ts: regenerates materials/demo/*.png; not part of the suite
 tests/scripts             bats tests for incident.sh and unlock.sh with a stubbed docker
 tests/lifecycle           Go, build tag `lifecycle`: tests that start, stop, reset or break the stack themselves (check.sh
                           faults, port conflict, GRAFANA_PORT, reset, offline via iptables, memory soak, image sizes, multi-arch)
@@ -153,12 +150,12 @@ check.sh                  bash 3.2 + curl + docker; PASS/FAIL per check with a f
 
 ## Materials (M6)
 
-- **The tests read the materials.** T6.1-3, T6.1-4 and T6.4-3 parse the fenced query blocks out of the Markdown and fill the `<placeholders>`. If you edit a query, run the integration suite. The integration tests find a template by a marker it contains (`template(t, "request_id=")`), so keep each template's marker unique.
+- **The tests read the materials.** T6.1-3 and T6.1-4 parse the fenced query blocks out of the Markdown and fill the `<placeholders>`. If you edit a query, run the integration suite. The integration tests find a template by a marker it contains (`template(t, "request_id=")`), so keep each template's marker unique.
 - **The placeholder names are fixed:** `service`, `level`, `text`, `other_text`, `pattern`, `field`, `value`, `ms`, `request_id`, `range`. T6.1-6 rejects any other name.
 - **File order matters here too.** `materials_baseline_test.go` must run before `materials_test.go`, whose mode B chain leaves non-red-herring WARN lines that the stretch scenario's check would see.
 - **Short mode tests must wait for their own errors to stop.** The M6 chains clear a mode seconds after starting it, often before Prometheus has scraped any 5xx, so the next test's `waitQuiet` reads 0 while 504s and 502s are still in flight. Those then land in the next mode's window (it broke T4.3-4 once). `triggerMode`'s cleanup waits until orders has logged no ERROR line for 10 s. Use `triggerMode` for any new test that switches a mode on.
-- **T6.1-4 for C starts from the dashboard's Deploys annotation.** The chain reads the field and value to filter on from the annotation's expression, the way an attendee reads the marker.
-- **Regenerating the screenshots:** start a fresh stack (`down -v`, `up`), wait about two minutes so the graphs have a healthy stretch, then run `(cd tests/e2e && npx playwright test -c capture.config.ts)`. A fresh stack matters: on a used one, earlier modes' deploy markers and WARN lines show up in the pictures. The spec keeps mode A running by re-running `./incident.sh A` every 10 s, so `INCIDENT_DURATION` doesn't matter. Look at every image before you commit.
+- **T6.1-4 for B starts from the dashboard's Deploys annotation.** The chain reads the field and value to filter on from the annotation's expression, the way an attendee reads the marker.
+- **The demo script is gone.** The human removed `materials/demo-script.md` and its screenshots (2026-10-27), along with the README's When to set up, Incidents and Registry fallback sections and the Mac line in Prerequisites. Their tests (T6.4-x, the README section checks) were removed or narrowed to match; T5.6-3 now covers the whole README.
 - **The gated worksheet (S6.5).** Scenarios 2–6 live in `services/cmd/labctl/questions.go`; editing them means rebuilding the orders image. After the human's own run (2026-10-22) the questions were rewritten as step-by-step instructions that point at cheat-sheet query numbers and dashboard panels, the notes template was dropped, and unlocking starts and clears the modes itself, so pairs never run `incident.sh`. The human chose this over the original "don't narrow the discovery path" rule. The answers are stored only as `sha256("lab-q<N>:" + normalize(answer))`, and the plain answers are on the facilitator's answer key, never in the repo, an issue or a PR. T6.5-4 writes down only scenario 1's field and scenario 3's service, and takes the other answers from the lab. Any change to a mode's evidence that changes an answer needs a new hash and an answer-key update. Later the human asked for the questions to become small scenarios, each a problem someone at the shop brings the pair and each practising one part of Grafana (Explore, a field filter, a panel's tooltip and legend, annotations, a data link plus a metric query, the Table view), still ramping in difficulty. To make the ramp work, scenarios 3–5 were reordered (slowest service, then the marker's version, then the one failing item), so the hashes of answers 3–5 changed (the hash includes N) though the answers themselves didn't; the answer key's order needs the same change. After the human's own run, the scenarios became one connected story, an on-call shift: a support ticket in scenario 1 that is only solved in scenario 5, two pages in between, and a review as the stretch. Each scenario leans on what the one before it found, and the answers didn't change. The modes were relabelled to match, so scenarios 3–5 run A, B, C in order: **mode A is now the slow inventory (issue #19, titled B), mode B the bad release (#21, titled C), and mode C the one broken item (#20, titled A).** The issues, and test IDs such as T4.2 and T4.4, keep their original letters; everything in the repo uses the new ones.
 - **Cause words.** `tests/hygiene` keeps every mode's evidence (`sku`, `token`, `deploy`, `1.4.3`, `deadline`, `timeout`, …) out of the cheat sheet, the worksheet, `labctl`'s unlock messages and `unlock.sh`, the answers out of `labctl`'s questions (which may name the latency panel and the Deploys toggle), and B's and C's out of the demo script. The words aren't matched in the PNGs, so check them by eye.
 
