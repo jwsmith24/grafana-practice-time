@@ -19,12 +19,13 @@ Tips:
 
 ## 1. A ticket from support
 
-09:05, the start of your shift. Sam from support forwards a ticket: a customer says checkout showed them an error earlier, and they want to know what happened to their order. Sam can trace any single order, but only if you can tell them which field in the logs holds a request's ID.
+09:05, the start of your shift. Sam from support forwards a ticket: "A customer placed order ORD-000042 earlier and never got a confirmation email. They want to know if the order actually went through before they try again and pay twice."
 
 1. In Grafana, open **Explore** (the compass in the left menu) and check that the data source at the top is **Loki**.
-2. Run query 1 with `service` = `orders` and `level` = `INFO`.
-3. Click a line to expand it. Grafana lists every field the line carries. One of them holds an ID that is different for every request.
+2. Set the time picker (top right) to **Last 24 hours**. Explore only searches the time range you pick, and the order may be older than the default hour.
+3. Run query 4 with `service` = `orders`, `field` = `order_id` and `value` = `ORD-000042`. Every line about that order comes back.
+4. Click the line whose `endpoint` is `POST /orders` to expand it: that's the moment the customer placed the order. Grafana lists every field the line carries, and `status` is the HTTP status code the shop sent back. (Other lines, with `GET /orders/{id}`, are the customer checking on the order afterwards.)
 
-Grafana skill: Explore and log details.
+Grafana skill: Explore, the time picker and log details.
 
-The password is that field's name.
+The password is that status code: what you'll tell Sam the shop answered.

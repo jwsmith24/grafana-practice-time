@@ -36,7 +36,7 @@ func TestWorksheetBaseline(t *testing.T) {
 				request = l
 			}
 		}
-		for _, f := range []string{"request_id", "endpoint", "status", "duration_ms"} {
+		for _, f := range []string{"request_id", "endpoint", "status", "duration_ms", "order_id"} {
 			if _, ok := request.fields[f]; !ok {
 				t.Errorf("orders request line has no %s: %v", f, request.fields)
 			}
