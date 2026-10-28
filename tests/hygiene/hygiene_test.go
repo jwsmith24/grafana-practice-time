@@ -90,7 +90,6 @@ func TestMaterialsRevealNothing(t *testing.T) {
 		"services/cmd/labctl/questions.go": questionWords,
 		"services/cmd/labctl/unlock.go":    causeWords,
 		"unlock.sh":                        causeWords,
-		"materials/demo-script.md":         {"sku", "1042", "token", "auth", "credential", "rejected", "deploy", "1.4.3"},
 	}
 	for f, words := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))
