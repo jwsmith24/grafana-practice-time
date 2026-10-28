@@ -1,6 +1,6 @@
 # Troubleshooting worksheet
 
-Today you're on call for the shop. Over one shift, six scenarios follow each other: a ticket from support, a page or two, and a review at the end. Each one builds on what you found in the one before, and each practises a different part of Grafana. They get harder as you go, but every step tells you where to click.
+Today you're on call for the shop. Over one shift, six scenarios follow each other: a ticket from support, an alert or two, and a review at the end. Each one builds on what you found in the one before, and each practises a different part of Grafana. They get harder as you go, but every step tells you where to click.
 
 Work in pairs: one person drives Grafana, the other reads the steps, and you swap after each scenario. Use only Grafana (the **Lab Overview** dashboard and **Explore**) and the queries on the LogQL cheat sheet. Don't read the lab's source code.
 
@@ -19,7 +19,7 @@ Tips:
 
 ## 1. A ticket from support
 
-09:05, the start of your shift. Sam from support forwards a ticket: "A customer placed order ORD-000042 earlier and never got a confirmation email. They want to know if the order actually went through before they try again and pay twice."
+09:05, the start of your shift. Kyle from support forwards a ticket: "A customer placed order ORD-000042 earlier and never got a confirmation email. They want to know if the order actually went through before they try again and pay twice."
 
 1. In Grafana, open **Explore** (the compass in the left menu) and check that the data source at the top is **Loki**.
 2. Set the time picker (top right) to **Last 24 hours**. Explore only searches the time range you pick, and the order may be older than the default hour.
@@ -28,4 +28,4 @@ Tips:
 
 Grafana skill: Explore, the time picker and log details.
 
-The password is that status code: what you'll tell Sam the shop answered.
+The password is that status code: what you'll tell Kyle the shop answered.

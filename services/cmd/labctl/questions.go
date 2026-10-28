@@ -15,8 +15,8 @@ var labWorksheet = worksheet{
 		},
 		{
 			title: "2. Behind the scenes of one order",
-			body: `The order went through, so Sam tells the customer not to pay again. Sam
-has one more question: placing an order takes more than one service, so
+			body: `The order went through, so Kyle tells the customer not to pay again.
+Kyle has one more question: placing an order takes more than one service, so
 which other service did the shop call to finish ORD-000042? Knowing the
 route a healthy order takes tells you what normal looks like, before
 anything breaks.
@@ -33,10 +33,10 @@ The password is the name of that other service.`,
 			hash: "591926df98b0bd032a92ea9800c354fdb6a11d31ad3bcab7bdcecff3ff9969dc",
 		},
 		{
-			title: "3. The pager goes off: checkout is crawling",
+			title: "3. An alert fires: checkout is crawling",
 			mode:  "B",
-			body: `10:40. Your pager goes off: "checkout is slow". Sam adds that customers are
-giving up halfway through, and some orders fail. Orders gets the blame,
+			body: `10:40. An alert lands in the on-call channel: "checkout is slow". Kyle
+adds that customers are giving up halfway through, and some orders fail. Orders gets the blame,
 but you now know orders waits on another service for every order. Is
 orders itself slow, or is it waiting?
 
@@ -50,7 +50,7 @@ latency panel shows how long the slowest requests take, per service.
 Grafana skill: reading a dashboard panel, its tooltip and its legend.
 
 The password is the name of the service whose line climbs highest: the
-team you page next.`,
+team you call in next.`,
 			hash: "abe256fef7d5192604a987d77f6a189580b5953a7078a2309196b984ad957f11",
 		},
 		{
@@ -76,8 +76,8 @@ orders team to roll back.`,
 			title: "5. The tickets keep coming",
 			mode:  "A",
 			body: `11:50. The rollback went out: a new marker shows the old version back in
-place. But Sam's queue is filling up again, this time with customers whose
-orders fail every time they try. Most orders go through fine. What do the
+place. But Kyle's queue is filling up again, this time with customers
+whose orders fail every time they try. Most orders go through fine. What do the
 failing ones have in common?
 
 1. On Lab Overview, click "orders POST /orders" in the legend of the
@@ -92,7 +92,7 @@ failing ones have in common?
 Grafana skill: jumping from a dashboard to the logs with a data link, and
 turning logs into numbers.
 
-The password is the only item_id in that result: the product Sam can warn
+The password is the only item_id in that result: the product Kyle can warn
 customers about while it's fixed.`,
 			hash: "34f82c78c8367452a1fb03729101f297963b3a5830c2b626b41354b9fc65c2c0",
 		},
@@ -113,12 +113,12 @@ fixes first.`,
 			hash: "1b5281026d200d6f06bf15b0dd427c9c6c676a93c604968557bb233354e9ff6a",
 		},
 	},
-	closing: `That's all six, and the end of your shift. You answered Sam's ticket,
+	closing: `That's all six, and the end of your shift. You answered Kyle's ticket,
 traced an order through the shop, found who was holding up checkout,
 caught a bad release, found the product behind the failing orders and cut
 the noise for next time, using Explore, log details, a dashboard panel,
 annotations, a data link and the Table view.
 
 Tell the facilitator you're done. While you wait, write the three-line
-summary you'd send Sam, and compare it with another pair's.`,
+summary you'd send Kyle, and compare it with another pair's.`,
 }
