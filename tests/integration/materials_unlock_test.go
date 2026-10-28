@@ -44,7 +44,7 @@ func unlockNext(t *testing.T, n int, answer string) string {
 	}
 	want := "\n## " + strconv.Itoa(n+1) + ". "
 	if n == 6 {
-		want = "That's all six."
+		want = "That's all six"
 	}
 	if !strings.Contains(out, want) {
 		t.Fatalf("unlock.sh %d printed %q, want it to contain %q", n, out, want)
