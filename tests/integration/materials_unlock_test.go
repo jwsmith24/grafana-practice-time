@@ -84,29 +84,29 @@ func TestGatedWorksheet(t *testing.T) {
 		t.Fatalf("request %s: other services %v, want one", id, others)
 	}
 
-	// Answering 2 starts mode A. Its answer, the service, is written down below.
-	t.Run("A", func(t *testing.T) {
-		triggerWith(t, "A", func() { unlockNext(t, 2, others[0]) })
-		wantStatus(t, "active: A")
+	// Answering 2 starts mode B. Its answer, the service, is written down below.
+	t.Run("B", func(t *testing.T) {
+		triggerWith(t, "B", func() { unlockNext(t, 2, others[0]) })
+		wantStatus(t, "active: B")
 	})
 
-	// Answering 3 starts mode B (the wait for a quiet lab clears A first, so
-	// B's chain sees only its own errors).
+	// Answering 3 starts mode C (the wait for a quiet lab clears B first, so
+	// C's chain sees only its own errors).
 	var version string
-	t.Run("B", func(t *testing.T) {
-		start := triggerWith(t, "B", func() { unlockNext(t, 3, "inventory") })
-		wantStatus(t, "active: B")
-		version = chainB(t, start)
+	t.Run("C", func(t *testing.T) {
+		start := triggerWith(t, "C", func() { unlockNext(t, 3, "inventory") })
+		wantStatus(t, "active: C")
+		version = chainC(t, start)
 	})
 	if t.Failed() {
 		t.FailNow()
 	}
 
-	// Answering 4 starts mode C, after the same wait; answering 5 clears it.
-	t.Run("C", func(t *testing.T) {
-		start := triggerWith(t, "C", func() { unlockNext(t, 4, version) })
-		wantStatus(t, "active: C")
-		unlockNext(t, 5, chainC(t, start))
+	// Answering 4 starts mode A, after the same wait; answering 5 clears it.
+	t.Run("A", func(t *testing.T) {
+		start := triggerWith(t, "A", func() { unlockNext(t, 4, version) })
+		wantStatus(t, "active: A")
+		unlockNext(t, 5, chainA(t, start))
 		wantStatus(t, "none")
 	})
 	if t.Failed() {

@@ -100,12 +100,13 @@ func TestUnlockThroughRun(t *testing.T) {
 }
 
 // T6.5-1 (stored answers are hashes only) and the labctl half of T6.2-1: six
-// numbered scenarios, the last a stretch; scenarios 3 to 5 start modes A, B
-// and C, which get harder in that order; each names the Grafana skill it
-// practises, and none asks the pair to switch modes themselves.
+// numbered scenarios, the last a stretch; scenarios 3 to 5 start modes B, C
+// and A, in that order, so the easiest one to read comes first; each names
+// the Grafana skill it practises, and none asks the pair to switch modes
+// themselves.
 func TestLabWorksheet(t *testing.T) {
 	hexHash := regexp.MustCompile(`^[0-9a-f]{64}$`)
-	modes := []string{"", "", "A", "B", "C", ""}
+	modes := []string{"", "", "B", "C", "A", ""}
 	qs := labWorksheet.questions
 	if len(qs) != len(modes) {
 		t.Fatalf("%d scenarios, want %d", len(qs), len(modes))

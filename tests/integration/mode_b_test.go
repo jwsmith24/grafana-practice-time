@@ -3,114 +3,115 @@
 package integration
 
 import (
-	"bytes"
-	"strconv"
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 )
 
-// lokiEntry is one log line with its timestamp.
-type lokiEntry struct {
-	ts      time.Time
-	service string
-	line    string
+type requestLine struct {
+	RequestID  string  `json:"request_id"`
+	Level      string  `json:"level"`
+	Status     int     `json:"status"`
+	DurationMS float64 `json:"duration_ms"`
 }
 
-// oldest returns the earliest entry in streams.
-func oldest(t *testing.T, streams []lokiStream) (lokiEntry, bool) {
+func requestLines(t *testing.T, streams []lokiStream) []requestLine {
 	t.Helper()
-	var first lokiEntry
-	found := false
+	var out []requestLine
 	for _, s := range streams {
 		for _, v := range s.Values {
-			ns, err := strconv.ParseInt(v[0], 10, 64)
-			if err != nil {
-				t.Fatalf("timestamp %q: %v", v[0], err)
+			var l requestLine
+			if err := json.Unmarshal([]byte(v[1]), &l); err != nil {
+				t.Fatalf("line %q: %v", v[1], err)
 			}
-			ts := time.Unix(0, ns)
-			if !found || ts.Before(first.ts) {
-				first, found = lokiEntry{ts: ts, service: s.Stream["service"], line: v[1]}, true
-			}
+			out = append(out, l)
 		}
 	}
-	return first, found
+	return out
 }
 
-// deployAt returns when orders logged a deploy of version since start.
-func deployAt(t *testing.T, version string, start time.Time) (time.Time, bool) {
-	t.Helper()
-	q := `{service="orders"} | json | event="deploy" | version="` + version + `"`
-	e, ok := oldest(t, lokiQueryRange(t, q, start, time.Now()))
-	return e.ts, ok
-}
-
-// T4.4-4 to T4.4-6
+// T4.2-2 to T4.2-5
 func TestModeB(t *testing.T) {
 	d := labDuration(t)
 	incidentSh(t, "clear")
 	t.Cleanup(func() { incidentSh(t, "clear") })
-	waitQuiet(t)
 
 	start := time.Now()
 	incidentSh(t, "B")
 	expires := start.Add(d)
+	since := func() time.Duration { return time.Since(start) + 5*time.Second }
 
-	// T4.4-4
-	t.Run("deploy annotation and error rate within 30s", func(t *testing.T) {
-		anno := deployAnnotation(t)
-		var seen bool
-		var v float64
+	// T4.2-2
+	var timeouts []requestLine
+	t.Run("orders logs deadline errors", func(t *testing.T) {
+		const q = `{service="orders", level="ERROR"} |= "context deadline exceeded"`
+		if !eventually(t, 20*time.Second, func() bool {
+			timeouts = requestLines(t, lokiQuery(t, q, since()))
+			return len(timeouts) > 0
+		}) {
+			t.Fatalf("no lines for %s", q)
+		}
+	})
+
+	// T4.2-4
+	t.Run("request id leads to a slow inventory line", func(t *testing.T) {
+		if len(timeouts) == 0 {
+			t.Skip("needs a deadline error from the previous step")
+		}
+		id := timeouts[0].RequestID
+		if id == "" {
+			t.Fatalf("deadline error has no request_id: %+v", timeouts[0])
+		}
+		q := fmt.Sprintf(`{service="inventory"} | json | request_id=%q`, id)
+		var got []requestLine
+		if !eventually(t, 15*time.Second, func() bool {
+			got = requestLines(t, lokiQuery(t, q, since()))
+			return len(got) > 0
+		}) {
+			t.Fatalf("no inventory line for request_id %s", id)
+		}
+		l := got[0]
+		if l.Level != "INFO" || l.Status != 200 || l.DurationMS <= 2000 {
+			t.Fatalf("inventory line for %s: %+v, want INFO, 200, duration_ms > 2000", id, l)
+		}
+	})
+
+	// T4.2-3
+	t.Run("p95 panel shows it within 30s", func(t *testing.T) {
+		panel := dashboardPanels(t)["p95 latency by service"]
+		var p95 float64
 		for time.Since(start) <= 30*time.Second {
-			seen = seen || bytes.Contains(panelRaw(t, anno, 5*time.Minute), []byte(`\"version\":\"1.4.3\"`))
-			if v = orders5xx(t); seen && v > 0 {
-				t.Logf("annotation and 5xx = %.3f/s after %s", v, time.Since(start).Round(time.Second))
+			for _, s := range panelQuery(t, panel, 5*time.Minute) {
+				if s.Labels["service"] == "inventory" {
+					p95, _ = lastFinite(s.Values)
+				}
+			}
+			if p95 > 2 {
+				t.Logf("p95(inventory) = %.2fs after %s", p95, time.Since(start).Round(time.Second))
 				return
 			}
 			time.Sleep(5 * time.Second)
 		}
-		t.Fatalf("30s after the switch: 1.4.3 annotation %v, orders 5xx %v", seen, v)
+		t.Fatalf("p95(inventory) = %.2fs 30s after the switch, want > 2s", p95)
 	})
 
-	// T4.4-5
-	t.Run("first error after the deploy leads to inventory", func(t *testing.T) {
-		deployed, ok := deployAt(t, "1.4.3", start.Add(-time.Second))
-		if !ok {
-			t.Fatal("no 1.4.3 deploy line")
-		}
-		first, ok := oldest(t, lokiQueryRange(t, `{level="ERROR"}`, deployed, time.Now()))
-		if !ok {
-			t.Fatal("no ERROR line after the deploy")
-		}
-		if first.service != "orders" || !bytes.Contains([]byte(first.line), []byte("inventory rejected credentials")) {
-			t.Fatalf("first ERROR after the deploy is %s: %s", first.service, first.line)
-		}
-		warn, ok := oldest(t, lokiQueryRange(t, `{service="inventory", level="WARN"} |= "auth token rejected"`, deployed, time.Now()))
-		if !ok {
-			t.Fatal("no auth token rejected WARN after the deploy")
-		}
-		if gap := warn.ts.Sub(deployed); gap < 0 || gap > 5*time.Second {
-			t.Fatalf("auth token rejected starts %s after the deploy, want 0-5s", gap)
-		}
-	})
-
-	// T4.4-6
-	t.Run("clears with a rollback", func(t *testing.T) {
-		time.Sleep(time.Until(expires.Add(2 * time.Second)))
+	// T4.2-5: lookups that started before expiry can take up to 4 s more
+	// (plus the 1 s state poll), so judge the lines from expiry+6s to +10s.
+	t.Run("clears", func(t *testing.T) {
+		from, to := expires.Add(6*time.Second), expires.Add(10*time.Second)
+		time.Sleep(time.Until(to.Add(5 * time.Second))) // let Alloy ship them
 		if out := incidentSh(t, "status"); out != "none" {
 			t.Fatalf("status after expiry: %q", out)
 		}
-		if !eventually(t, 10*time.Second, func() bool { return postOrder(t, "SKU-1001") == 201 }) {
-			t.Fatal("orders not returning 201 10s after expiry")
+		lines := requestLines(t, lokiQueryRange(t, `{service="inventory"} |= "duration_ms"`, from, to))
+		if len(lines) == 0 {
+			t.Fatal("no inventory request lines 6-10s after expiry")
 		}
-		bad, _ := deployAt(t, "1.4.3", start.Add(-time.Second))
-		var back time.Time
-		if !eventually(t, 10*time.Second, func() bool {
-			var ok bool
-			back, ok = deployAt(t, "1.4.2", bad)
-			return ok
-		}) {
-			t.Fatal("no 1.4.2 deploy line after the 1.4.3 one")
+		for _, l := range lines {
+			if l.DurationMS >= 2000 {
+				t.Fatalf("inventory line 6-10s after expiry took %.0fms: %+v", l.DurationMS, l)
+			}
 		}
-		t.Logf("1.4.2 rollback %s after 1.4.3", back.Sub(bad).Round(time.Millisecond))
 	})
 }

@@ -69,8 +69,8 @@ async function settle(page: Page) {
   await page.waitForTimeout(1_500);
 }
 
-// Regenerates materials/demo/*.png. Mode A is kept running (each run of
-// ./incident.sh A restarts its timer), so this works with any
+// Regenerates materials/demo/*.png. Mode B is kept running (each run of
+// ./incident.sh B restarts its timer), so this works with any
 // INCIDENT_DURATION.
 test('demo script screenshots', async ({ page }) => {
   const steps = demoSteps();
@@ -80,12 +80,12 @@ test('demo script screenshots', async ({ page }) => {
   try {
     for (const step of steps) {
       if (step.lang === 'promql') {
-        // The PromQL step starts mode A and shows the dashboard once it has
+        // The PromQL step starts mode B and shows the dashboard once it has
         // caught up; the steps after it look at the logs since then.
         if (!keepAlive) {
           started = Date.now();
-          incident('A');
-          keepAlive = setInterval(() => incident('A'), 10_000);
+          incident('B');
+          keepAlive = setInterval(() => incident('B'), 10_000);
           await page.waitForTimeout(45_000);
         }
         await page.goto(`/d/lab-overview/lab-overview?from=now-15m&to=now&refresh=&theme=light`);

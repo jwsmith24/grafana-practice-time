@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-// T6.4-3: every demo query returns results while mode A runs, each run in
+// T6.4-3: every demo query returns results while mode B runs, each run in
 // the script's order with its placeholders filled from the step before.
 func TestDemoScript(t *testing.T) {
 	blocks := regexp.MustCompile("(?ms)^```(logql|promql)\n(.*?)^```$").FindAllStringSubmatch(readMaterial(t, "demo-script.md"), -1)
 	if len(blocks) == 0 {
 		t.Fatal("no query blocks in the demo script")
 	}
-	start := triggerMode(t, "A")
+	start := triggerMode(t, "B")
 	values := map[string]string{}
 	for i, b := range blocks {
 		lang, q := b[1], fill(t, strings.TrimSpace(b[2]), values)

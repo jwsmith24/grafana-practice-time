@@ -172,11 +172,11 @@ func TestTokenRequired(t *testing.T) {
 func TestSlowLookups(t *testing.T) {
 	t.Run("delay bounds", func(t *testing.T) {
 		for i := 0; i < 1000; i++ {
-			if d := lookupDelay("A"); d < 2*time.Second || d >= 4*time.Second {
+			if d := lookupDelay("B"); d < 2*time.Second || d >= 4*time.Second {
 				t.Fatalf("delay %s outside [2s, 4s)", d)
 			}
 		}
-		for _, mode := range []string{"", "B", "C"} {
+		for _, mode := range []string{"", "A", "C"} {
 			if d := lookupDelay(mode); d != 0 {
 				t.Fatalf("mode %q: delay %s, want 0", mode, d)
 			}
@@ -187,7 +187,7 @@ func TestSlowLookups(t *testing.T) {
 		var buf bytes.Buffer
 		var slept []time.Duration
 		st := store{
-			mode:  func() string { return "A" },
+			mode:  func() string { return "B" },
 			sleep: func(d time.Duration) { slept = append(slept, d); time.Sleep(d) },
 		}
 		h := newHandler(logging.NewWithWriter(service, &buf), testToken, metrics.NewHTTP(service), st)
@@ -216,7 +216,7 @@ func TestSlowLookups(t *testing.T) {
 		}
 	})
 
-	t.Run("no delay outside A", func(t *testing.T) {
+	t.Run("no delay outside B", func(t *testing.T) {
 		st := store{
 			mode:  func() string { return "" },
 			sleep: func(d time.Duration) { t.Fatalf("slept %s", d) },
@@ -231,7 +231,7 @@ func TestSlowLookups(t *testing.T) {
 // T4.3-1
 func TestUnparsableRecord(t *testing.T) {
 	var buf bytes.Buffer
-	st := store{mode: func() string { return "C" }, sleep: func(time.Duration) {}}
+	st := store{mode: func() string { return "A" }, sleep: func(time.Duration) {}}
 	h := newHandler(logging.NewWithWriter(service, &buf), testToken, metrics.NewHTTP(service), st)
 
 	rec := serve(t, h, "/inventory/SKU-1042", nil)
@@ -265,6 +265,6 @@ func TestUnparsableRecord(t *testing.T) {
 
 	plain := newHandler(slog.New(slog.DiscardHandler), testToken, metrics.NewHTTP(service), store{})
 	if rec := serve(t, plain, "/inventory/SKU-1042", nil); rec.Code != 200 {
-		t.Fatalf("SKU-1042 outside C: status %d, want 200", rec.Code)
+		t.Fatalf("SKU-1042 outside A: status %d, want 200", rec.Code)
 	}
 }
